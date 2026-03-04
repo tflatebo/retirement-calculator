@@ -1,0 +1,895 @@
+/* =====================================================
+   RETIREMENT CALCULATOR — MAIN STYLES
+   ===================================================== */
+
+/* App container */
+.app-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* =====================================================
+   HEADER
+   ===================================================== */
+.app-header {
+  background: #1565c0;
+  color: white;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.app-header-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+}
+
+.app-subtitle {
+  font-size: 13px;
+  color: rgba(255,255,255,0.8);
+  margin: 0;
+}
+
+.btn-reset {
+  background: rgba(255,255,255,0.15);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.4);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-reset:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+.btn-reset-confirm {
+  background: #c62828;
+  border-color: #ef9a9a;
+  animation: pulse-confirm 0.6s ease-in-out infinite alternate;
+}
+
+.btn-reset-confirm:hover {
+  background: #b71c1c;
+}
+
+@keyframes pulse-confirm {
+  from { opacity: 1; }
+  to { opacity: 0.8; }
+}
+
+/* Monte Carlo pending overlay */
+.mc-pending-overlay {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: rgba(21, 101, 192, 0.85);
+  color: white;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* =====================================================
+   TOP STRIP
+   ===================================================== */
+.top-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  background: white;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.strip-card {
+  padding: 16px 20px;
+  border-right: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.strip-card:last-child {
+  border-right: none;
+}
+
+.strip-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #757575;
+}
+
+.strip-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a2e;
+  line-height: 1;
+}
+
+.strip-sub {
+  font-size: 11px;
+  color: #9e9e9e;
+}
+
+.strip-good .strip-value {
+  color: #2e7d32;
+}
+
+.strip-warn .strip-value {
+  color: #c62828;
+}
+
+.strip-good {
+  background: #f1f8e9;
+}
+
+.strip-warn {
+  background: #fff3e0;
+}
+
+/* =====================================================
+   MAIN LAYOUT
+   ===================================================== */
+.main-layout {
+  display: flex;
+  flex: 1;
+  gap: 0;
+  align-items: flex-start;
+}
+
+.inputs-panel {
+  width: 380px;
+  min-width: 320px;
+  max-width: 420px;
+  flex-shrink: 0;
+  background: white;
+  border-right: 1px solid #e0e0e0;
+  overflow-y: auto;
+  max-height: calc(100vh - 120px);
+  position: sticky;
+  top: 0;
+}
+
+.output-panel {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* =====================================================
+   PANELS (COLLAPSIBLE)
+   ===================================================== */
+.panel {
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 16px;
+  background: #fafafa;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 13px;
+}
+
+.panel-header:hover {
+  background: #f0f4ff;
+}
+
+.panel-title {
+  font-weight: 600;
+  color: #1a1a2e;
+  font-size: 13px;
+}
+
+.panel-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1565c0;
+  background: #e3f2fd;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-right: auto;
+  margin-left: 8px;
+}
+
+.panel-chevron {
+  font-size: 10px;
+  color: #9e9e9e;
+  margin-left: 8px;
+}
+
+.panel-body {
+  padding: 16px;
+  background: white;
+}
+
+/* =====================================================
+   INPUT FORMS
+   ===================================================== */
+.input-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 14px;
+}
+
+.input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.input-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #424242;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.input-help {
+  font-size: 10.5px;
+  font-weight: 400;
+  color: #9e9e9e;
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+  background: white;
+}
+
+.input-wrapper:focus-within {
+  border-color: #1565c0;
+  box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.12);
+}
+
+.input-prefix,
+.input-suffix {
+  background: #f5f5f5;
+  color: #757575;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 8px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  border-right: 1px solid #d0d0d0;
+  white-space: nowrap;
+}
+
+.input-suffix {
+  border-right: none;
+  border-left: 1px solid #d0d0d0;
+}
+
+.input-control {
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #1a1a2e;
+  background: white;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.input-control:focus {
+  border-color: #1565c0;
+  box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.12);
+}
+
+.input-control.has-prefix,
+.input-control.has-suffix {
+  border: none;
+  border-radius: 0;
+  flex: 1;
+  outline: none;
+}
+
+.input-control.has-prefix:focus,
+.input-control.has-suffix:focus {
+  box-shadow: none;
+}
+
+/* Number inputs: hide spinners for cleaner look */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  opacity: 0.5;
+}
+
+.section-note {
+  font-size: 11.5px;
+  color: #757575;
+  margin-bottom: 12px;
+  line-height: 1.5;
+  padding: 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 2px solid #e0e0e0;
+}
+
+.total-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #424242;
+}
+
+.total-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1565c0;
+}
+
+/* =====================================================
+   SPENDING PHASES
+   ===================================================== */
+.spending-phases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.spending-phase-row {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fafafa;
+}
+
+.phase-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.phase-name-input {
+  flex: 1;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a2e;
+  background: white;
+  outline: none;
+}
+
+.phase-name-input:focus {
+  border-color: #1565c0;
+  box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.1);
+}
+
+.phase-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr;
+  gap: 8px;
+}
+
+.phase-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.phase-field label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #757575;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.phase-field-note {
+  font-size: 10px;
+  color: #9e9e9e;
+  line-height: 1.4;
+  margin-top: 3px;
+}
+
+.btn-remove {
+  background: #fff;
+  color: #e53935;
+  border: 1px solid #e53935;
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btn-remove:hover:not(:disabled) {
+  background: #ffebee;
+}
+
+.btn-remove:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-add {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px dashed #90caf9;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.15s;
+}
+
+.btn-add:hover {
+  background: #bbdefb;
+}
+
+/* =====================================================
+   CONTRIBUTION PHASES
+   ===================================================== */
+.contrib-phase-fields {
+  grid-template-columns: 1fr 1fr !important;
+}
+
+.contrib-amounts-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* =====================================================
+   CHART
+   ===================================================== */
+.chart-container {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.chart-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 4px;
+}
+
+.chart-subtitle {
+  font-size: 12px;
+  color: #9e9e9e;
+  margin-bottom: 16px;
+}
+
+.chart-tooltip {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.tooltip-age {
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: #1a1a2e;
+}
+
+/* =====================================================
+   YEAR TABLE
+   ===================================================== */
+.table-scroll {
+  overflow: auto;
+  max-height: 70vh;
+}
+
+.year-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.year-table th {
+  background: #f5f7ff;
+  color: #424242;
+  font-weight: 600;
+  padding: 8px 10px;
+  text-align: right;
+  border-bottom: 2px solid #e0e0e0;
+  border-right: 1px solid #e8e8e8;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.year-table th:first-child,
+.year-table td:first-child {
+  text-align: left;
+}
+
+.year-table td {
+  padding: 6px 10px;
+  text-align: right;
+  border-bottom: 1px solid #f0f0f0;
+  border-right: 1px solid #f5f5f5;
+  color: #333;
+}
+
+.year-table tr:hover td {
+  background: #f8f9ff;
+}
+
+.row-accum td {
+  color: #555;
+  background: #fffde7;
+}
+
+.row-accum:hover td {
+  background: #fff9c4;
+}
+
+.row-decum td {
+  background: white;
+}
+
+.col-total {
+  font-weight: 700;
+  color: #1565c0 !important;
+}
+
+
+.phase-name-cell {
+  text-align: left !important;
+  font-size: 11px;
+  color: #757575;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =====================================================
+   CELL TOOLTIPS (year table hover breakdowns)
+   ===================================================== */
+
+/* Make the td position:relative so tooltip can anchor to it */
+.cell-with-tooltip {
+  position: relative;
+  cursor: default;
+}
+
+/* The tooltip popup — hidden by default */
+.cell-tooltip {
+  display: none;
+  position: absolute;
+  z-index: 200;
+  bottom: calc(100% + 4px);
+  right: 0;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.14);
+  white-space: nowrap;
+  pointer-events: none;
+  min-width: 220px;
+  text-align: left;
+}
+
+/* Show tooltip on hover */
+.cell-with-tooltip:hover .cell-tooltip {
+  display: block;
+}
+
+/* Inner breakdown table */
+.tooltip-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tooltip-table td {
+  padding: 2px 0;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Label column */
+.tooltip-label {
+  color: #555;
+  padding-right: 16px !important;
+  white-space: nowrap;
+}
+
+/* Amount column — right-aligned */
+.tooltip-amount {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* Positive flow (inflow) */
+.tooltip-row-positive .tooltip-amount {
+  color: #2e7d32;
+}
+
+/* Negative flow (outflow) */
+.tooltip-row-negative .tooltip-amount {
+  color: #c62828;
+}
+
+/* Neutral / info row */
+.tooltip-row-neutral .tooltip-amount {
+  color: #616161;
+}
+
+/* Total / ending balance row */
+.tooltip-row-total .tooltip-label {
+  font-weight: 600;
+  color: #1a1a2e;
+}
+.tooltip-row-total .tooltip-amount {
+  font-weight: 700;
+  color: #1565c0;
+  text-align: right !important;
+}
+
+/* Divider between rows and ending balance */
+.tooltip-divider-row td {
+  padding: 4px 0 !important;
+}
+.tooltip-divider {
+  border: none;
+  border-top: 1px solid #e8e8e8;
+  margin: 0;
+}
+
+/* =====================================================
+   FOOTER
+   ===================================================== */
+.app-footer {
+  background: white;
+  border-top: 1px solid #e0e0e0;
+  padding: 12px 24px;
+  text-align: center;
+  color: #9e9e9e;
+  font-size: 11px;
+}
+
+/* =====================================================
+   RESPONSIVE
+   ===================================================== */
+@media (max-width: 960px) {
+  .top-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .main-layout {
+    flex-direction: column;
+  }
+
+  .inputs-panel {
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    position: static;
+    border-right: none;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .output-panel {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .top-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .input-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .phase-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .strip-value {
+    font-size: 18px;
+  }
+}
+
+/* =====================================================
+   VALIDATION & HELPER TEXT
+   ===================================================== */
+
+/* Inline field warning (red — for data errors like cost basis > balance) */
+.field-warning {
+  font-size: 11px;
+  color: #c62828;
+  margin-top: 4px;
+  grid-column: 1 / -1;
+}
+
+/* Inline field warning (amber) — kept for legacy uses */
+.field-warning-amber {
+  font-size: 11px;
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 4px;
+  padding: 5px 8px;
+  margin-top: 2px;
+  line-height: 1.4;
+  grid-column: 1 / -1;
+}
+
+/* Inline field note (muted, informational) */
+.field-note {
+  font-size: 11px;
+  color: #757575;
+  line-height: 1.4;
+  margin-top: 2px;
+  grid-column: 1 / -1;
+}
+
+/* Configuration error banner (full-width, red) */
+.config-error-banner {
+  background: #fef2f2;
+  border-bottom: 2px solid #f87171;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 24px;
+  text-align: center;
+}
+
+/* Spending phase gap/overlap warnings */
+.phase-warning {
+  font-size: 11.5px;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 5px;
+  padding: 8px 10px;
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+/* Roth conversion warning in TaxInputs */
+.roth-warning {
+  font-size: 11px;
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 4px;
+  padding: 5px 8px;
+  margin-top: 2px;
+  grid-column: 1 / -1;
+  line-height: 1.4;
+}
+
+/* =====================================================
+   NEW FINANCIAL FEATURES — TAX / STRATEGY UI
+   ===================================================== */
+
+/* Filing status radio group */
+.radio-group { display: flex; gap: 8px; grid-column: 1 / -1; }
+.radio-group label { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid #d0d0d0; border-radius: 6px; font-size: 12px; font-weight: 500; color: #424242; cursor: pointer; transition: border-color 0.15s, background 0.15s; flex: 1; justify-content: center; }
+.radio-group label:has(input:checked) { border-color: #1565c0; background: #e3f2fd; color: #1565c0; font-weight: 600; }
+.radio-group input[type="radio"] { accent-color: #1565c0; width: 14px; height: 14px; }
+
+/* Segmented control */
+.segmented-control { display: flex; border: 1px solid #d0d0d0; border-radius: 6px; overflow: hidden; grid-column: 1 / -1; }
+.segmented-control button { flex: 1; padding: 6px 10px; font-size: 12px; font-weight: 500; color: #616161; background: white; border: none; border-right: 1px solid #d0d0d0; cursor: pointer; transition: background 0.12s, color 0.12s; }
+.segmented-control button:last-child { border-right: none; }
+.segmented-control button.active { background: #1565c0; color: white; font-weight: 600; }
+.segmented-control button:hover:not(.active) { background: #f0f4ff; }
+
+/* Strategy radio cards */
+.strategy-radio-group { display: flex; flex-direction: column; gap: 8px; }
+.strategy-option { display: flex; gap: 10px; padding: 10px 12px; border: 1px solid #d0d0d0; border-radius: 8px; cursor: pointer; transition: border-color 0.15s, background 0.15s; background: white; }
+.strategy-option.selected { border-color: #1565c0; background: #f0f4ff; }
+.strategy-option input[type="radio"] { margin-top: 3px; flex-shrink: 0; accent-color: #1565c0; }
+.strategy-option-body { display: flex; flex-direction: column; gap: 4px; }
+.strategy-option-title { font-size: 12.5px; font-weight: 600; color: #1a1a2e; }
+.strategy-option-desc { font-size: 11px; color: #616161; line-height: 1.5; }
+.strategy-option-note { font-size: 10.5px; color: #9e9e9e; line-height: 1.4; margin-top: 2px; }
+
+/* Info callout */
+.info-callout { background: #f0f7ff; border-left: 3px solid #1565c0; border-radius: 0 6px 6px 0; padding: 10px 12px; font-size: 11px; color: #424242; line-height: 1.6; margin-top: 8px; grid-column: 1 / -1; }
+.info-callout strong { display: block; font-size: 11.5px; color: #1565c0; margin-bottom: 4px; }
+
+/* Toggle row (checkbox) */
+.toggle-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; grid-column: 1 / -1; }
+.toggle-row input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; width: 16px; height: 16px; accent-color: #1565c0; cursor: pointer; }
+.toggle-row-label { font-size: 12px; font-weight: 600; color: #424242; cursor: pointer; }
+.toggle-row-help { font-size: 10.5px; font-weight: 400; color: #9e9e9e; margin-top: 2px; display: block; }
+
+/* Section subheading and divider */
+.section-subheading { font-size: 12px; font-weight: 700; color: #424242; text-transform: uppercase; letter-spacing: 0.4px; margin: 0 0 10px 0; grid-column: 1 / -1; }
+.section-divider { border: none; border-top: 1px solid #e8e8e8; margin: 14px 0; grid-column: 1 / -1; }
+
+/* Sub-field (cost basis under taxable balance) */
+.sub-field { grid-column: 1 / -1; padding-left: 14px; border-left: 2px solid #e3f2fd; margin-left: 2px; }
+.sub-field .input-label { color: #757575; }
+
+/* Conditional block */
+.conditional-block { grid-column: 1 / -1; padding: 10px 12px; background: #f8f9ff; border-radius: 6px; border: 1px solid #e3eaff; display: flex; flex-direction: column; gap: 10px; }
+
+/* Reset deduction link */
+.link-reset-deduction { font-size: 10.5px; color: #1565c0; background: none; border: none; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; margin-top: 2px; display: inline-block; }
+
+/* Table controls bar */
+.table-controls { display: flex; align-items: center; gap: 20px; padding: 8px 0 12px 0; font-size: 12px; color: #616161; flex-wrap: wrap; }
+.table-control-item { display: flex; align-items: center; gap: 6px; }
+.table-control-item input[type="checkbox"] { width: 14px; height: 14px; accent-color: #1565c0; cursor: pointer; }
+.total-mode-select { font-size: 12px; padding: 3px 6px; border: 1px solid #ccc; border-radius: 4px; color: #333; background: white; cursor: pointer; }
+
+/* Drag handles on chart */
+.drag-handle-rect { cursor: col-resize; fill: transparent; }
+.drag-handle-rect:hover { fill: rgba(0, 0, 0, 0.06); }
+
+/* Tax detail table columns */
+.year-table th.col-tax-detail { background: #e8f4fd; color: #1565c0; }
+.year-table th.col-tax-detail:first-of-type,
+.year-table td.col-tax-detail:first-of-type { border-left: 2px solid #bbdefb; }
