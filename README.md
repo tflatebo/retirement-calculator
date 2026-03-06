@@ -27,4 +27,33 @@ No additional setup is needed inside the devcontainer — just run `npm run dev`
 
 ## Architecture
 
-See [CLAUDE.md](../CLAUDE.md) for detailed architecture notes on the simulation engine, data flow, and component conventions.
+Single-page React app — no backend, no auth. All state persists to `localStorage` under key `retirementCalcState`.
+
+**Key modules:**
+- `src/engine/calculator.js` — all financial math (simulation, Monte Carlo, tax, RMDs, withdrawals). No React dependencies; fully unit-testable.
+- `src/defaultState.js` — canonical schema for all inputs. Adding a new field requires updating this file.
+- `src/context/StateContext.js` — React context providing `{ state, updateField, updateFields }` to all components.
+- `src/App.jsx` — orchestrates state, runs deterministic calc synchronously, sends MC to a Web Worker (debounced 300ms).
+- `src/utils/format.js` — currency and percentage formatting helpers.
+- `src/utils/ranges.js` — consecutive-integer range grouping/formatting (used for contribution phase labels).
+- `src/workers/monteCarlo.worker.js` — Web Worker that runs 1000 Monte Carlo simulations off the main thread.
+
+See [CLAUDE.md](../CLAUDE.md) for full data-flow diagram and component conventions.
+
+## Testing
+
+```bash
+npm test          # unit tests (Vitest)
+npm run test:e2e  # E2E tests (Playwright)
+```
+
+**Unit test coverage** (`src/**/*.test.js`):
+- `engine/calculator.test.js` — integration tests for `runDeterministic`, `runMonteCarlo`, `computeSummary`; feature tests for SS, spouse death, inflation, RMDs, withdrawal strategies, Roth conversion, healthcare, pension, federal/state tax
+- `utils/format.test.js` — `formatCurrency` and `formatPercent` edge cases
+- `utils/ranges.test.js` — `groupConsecutive` and `formatRanges` correctness
+
+**Testing philosophy:**
+- Engine logic is separated from UI and tested independently (no React in unit tests)
+- Prefer deterministic integration tests over snapshot tests
+- Each feature has at least one test exercising its behavior end-to-end through the simulation engine
+- Account balances are verified non-negative across all runs to catch numerical errors

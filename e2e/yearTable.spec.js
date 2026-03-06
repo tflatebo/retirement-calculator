@@ -14,7 +14,8 @@ test.describe('YearTable', () => {
 
   test('sticky header stays visible when scrolling the table', async ({ page }) => {
     const tableScroll = page.locator('.table-scroll');
-    const headerRow = page.locator('.year-table thead tr');
+    // Check a <th> element (which has position:sticky), not the <tr> wrapper
+    const headerRow = page.locator('.year-table thead th').first();
 
     // Get the scroll container's bounding box
     const scrollBox = await tableScroll.boundingBox();
@@ -48,20 +49,27 @@ test.describe('YearTable', () => {
     const firstRow = rows.first();
 
     // Get account values (columns: 0=Year, 1=Age, 2=Phase, 3=Cash, 4=Taxable, 5=Pre-Tax, 6=Roth, 7=Total)
-    const cells = firstRow.locator('td');
+    // Use :scope > td to get only direct children, not nested tds inside tooltip tables
+    const cells = firstRow.locator(':scope > td');
     const cash = await cells.nth(3).innerText();
     const taxable = await cells.nth(4).innerText();
     const preTax = await cells.nth(5).innerText();
     const roth = await cells.nth(6).innerText();
     const total = await cells.nth(7).innerText();
 
-    // Parse dollar values
-    const parse = s => Number(s.replace(/[$,]/g, ''));
+    // Parse dollar values — handle compact K/M suffixes from formatCurrency(value, true)
+    const parse = s => {
+      const str = s.trim().replace(/[$,]/g, '');
+      if (str.endsWith('M')) return parseFloat(str) * 1_000_000;
+      if (str.endsWith('K')) return parseFloat(str) * 1_000;
+      return parseFloat(str);
+    };
     const sum = parse(cash) + parse(taxable) + parse(preTax) + parse(roth);
     const totalVal = parse(total);
 
-    // Sum of accounts should equal the Total column (within $1 rounding)
-    expect(Math.abs(sum - totalVal)).toBeLessThan(2);
+    // Sum of accounts should approximately equal the Total column.
+    // Compact K/M format loses precision (e.g. $2.1M represents ±$50K), so allow up to $100K difference.
+    expect(Math.abs(sum - totalVal)).toBeLessThan(100_000);
   });
 
   test('median mode shows different values than deterministic', async ({ page }) => {

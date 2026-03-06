@@ -888,6 +888,8 @@ input[type="number"]::-webkit-outer-spin-button {
 /* Drag handles on chart */
 .drag-handle-rect { cursor: col-resize; fill: transparent; }
 .drag-handle-rect:hover { fill: rgba(0, 0, 0, 0.06); }
+/* Allow mouse events to pass through recharts tooltip cursor to drag handles */
+.recharts-tooltip-cursor { pointer-events: none; }
 
 /* Tax detail table columns */
 .year-table th.col-tax-detail { background: #e8f4fd; color: #1565c0; }

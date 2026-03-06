@@ -298,7 +298,7 @@ export function YearTable({ years, mcData, state }) {
                   <CellTooltip
                     rows={cashRows}
                     endingLabel="Ending balance"
-                    endingBalance={row.cash}
+                    endingBalance={displayCash}
                   >
                     {formatCurrency(displayCash, true)}
                   </CellTooltip>
@@ -306,7 +306,7 @@ export function YearTable({ years, mcData, state }) {
                   <CellTooltip
                     rows={taxableRows}
                     endingLabel="Ending balance"
-                    endingBalance={row.taxable}
+                    endingBalance={displayTaxable}
                   >
                     {formatCurrency(displayTaxable, true)}
                   </CellTooltip>
@@ -314,7 +314,7 @@ export function YearTable({ years, mcData, state }) {
                   <CellTooltip
                     rows={preTaxRows}
                     endingLabel="Ending balance"
-                    endingBalance={row.preTax}
+                    endingBalance={displayPreTax}
                   >
                     {formatCurrency(displayPreTax, true)}
                   </CellTooltip>
@@ -322,7 +322,7 @@ export function YearTable({ years, mcData, state }) {
                   <CellTooltip
                     rows={rothRows}
                     endingLabel="Ending balance"
-                    endingBalance={row.roth}
+                    endingBalance={displayRoth}
                   >
                     {formatCurrency(displayRoth, true)}
                   </CellTooltip>
@@ -332,7 +332,7 @@ export function YearTable({ years, mcData, state }) {
                     endingLabel={netChange != null
                       ? `Net change: ${netChange >= 0 ? '+' : ''}${formatCurrency(netChange, true)}`
                       : 'Total'}
-                    endingBalance={row.total}
+                    endingBalance={displayTotal}
                     className="col-total"
                   >
                     {formatCurrency(displayTotal, true)}

@@ -323,6 +323,175 @@ describe('healthcare costs', () => {
   });
 });
 
+// ─── RMD enforcement ─────────────────────────────────────────────────────────
+
+describe('RMD enforcement', () => {
+  it('rmdAmount is 0 before age 73', () => {
+    const years = runDeterministic(DEFAULT_STATE);
+    const at72 = years.find(y => y.age === 72);
+    if (at72) {
+      expect(at72.rmdAmount).toBe(0);
+    }
+  });
+
+  it('rmdAmount is positive at age 73 when preTax balance exists', () => {
+    const years = runDeterministic(DEFAULT_STATE);
+    const at73 = years.find(y => y.age === 73);
+    if (at73 && at73.preTax > 0) {
+      expect(at73.rmdAmount).toBeGreaterThan(0);
+    }
+  });
+
+  it('preTaxWithdrawal >= rmdAmount in decumulation years with RMDs', () => {
+    const years = runDeterministic(DEFAULT_STATE);
+    for (const y of years) {
+      if (!y.isAccumulation && y.rmdAmount > 0) {
+        expect(y.preTaxWithdrawal).toBeGreaterThanOrEqual(y.rmdAmount - 1); // 1-dollar tolerance for floating point
+      }
+    }
+  });
+});
+
+// ─── Withdrawal strategies ───────────────────────────────────────────────────
+
+describe('withdrawal strategies', () => {
+  it('proportional strategy produces finite results throughout', () => {
+    const state = { ...DEFAULT_STATE, withdrawalStrategy: 'proportional' };
+    const years = runDeterministic(state);
+    for (const y of years) {
+      expect(Number.isFinite(y.total)).toBe(true);
+      expect(y.cash).toBeGreaterThanOrEqual(0);
+      expect(y.taxable).toBeGreaterThanOrEqual(0);
+      expect(y.preTax).toBeGreaterThanOrEqual(0);
+      expect(y.roth).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('bracket strategy produces finite results throughout', () => {
+    const state = { ...DEFAULT_STATE, withdrawalStrategy: 'bracket', withdrawalTargetBracket: 22 };
+    const years = runDeterministic(state);
+    for (const y of years) {
+      expect(Number.isFinite(y.total)).toBe(true);
+      expect(y.cash).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('conventional strategy produces finite results throughout', () => {
+    const state = { ...DEFAULT_STATE, withdrawalStrategy: 'conventional' };
+    const years = runDeterministic(state);
+    for (const y of years) {
+      expect(Number.isFinite(y.total)).toBe(true);
+    }
+  });
+
+  it('all three strategies have non-negative account balances', () => {
+    for (const strategy of ['conventional', 'proportional', 'bracket']) {
+      const years = runDeterministic({ ...DEFAULT_STATE, withdrawalStrategy: strategy });
+      for (const y of years) {
+        expect(y.cash).toBeGreaterThanOrEqual(0);
+        expect(y.taxable).toBeGreaterThanOrEqual(0);
+        expect(y.preTax).toBeGreaterThanOrEqual(0);
+        expect(y.roth).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+});
+
+// ─── Roth conversion ─────────────────────────────────────────────────────────
+
+describe('Roth conversion', () => {
+  it('fixed conversion decreases preTax and increases roth in conversion window', () => {
+    const state = {
+      ...DEFAULT_STATE,
+      rothConversionStrategy: 'fixed',
+      rothConversionAmount: 50000,
+      rothConversionStartAge: 55,
+      rothConversionEndAge: 60,
+    };
+    const years = runDeterministic(state);
+    const at57 = years.find(y => y.age === 57);
+    expect(at57.rothConversion).toBeGreaterThan(0);
+  });
+
+  it('no conversion occurs outside conversion window', () => {
+    const state = {
+      ...DEFAULT_STATE,
+      rothConversionStrategy: 'fixed',
+      rothConversionAmount: 50000,
+      rothConversionStartAge: 60,
+      rothConversionEndAge: 65,
+    };
+    const years = runDeterministic(state);
+    const at57 = years.find(y => y.age === 57);
+    if (at57 && !at57.isAccumulation) {
+      expect(at57.rothConversion).toBe(0);
+    }
+  });
+
+  it('bracket conversion produces finite results', () => {
+    const state = {
+      ...DEFAULT_STATE,
+      rothConversionStrategy: 'bracket',
+      rothConversionTargetBracket: 22,
+      rothConversionStartAge: 55,
+      rothConversionEndAge: 65,
+    };
+    const years = runDeterministic(state);
+    for (const y of years) {
+      expect(Number.isFinite(y.rothConversion)).toBe(true);
+    }
+  });
+});
+
+// ─── Federal tax computation ──────────────────────────────────────────────────
+
+describe('federal tax computation', () => {
+  it('higher ordinary income leads to higher federal tax', () => {
+    // Spend more = more withdrawals = more ordinary income = more tax
+    const lowSpend = {
+      ...DEFAULT_STATE,
+      spendingPhases: [{ id: 1, name: 'Retirement', startAge: 55, endAge: 90, annualSpend: 80000 }],
+      person1SSMonthly: 0,
+      person2SSMonthly: 0,
+    };
+    const highSpend = {
+      ...DEFAULT_STATE,
+      spendingPhases: [{ id: 1, name: 'Retirement', startAge: 55, endAge: 90, annualSpend: 200000 }],
+      person1SSMonthly: 0,
+      person2SSMonthly: 0,
+    };
+
+    const lowYears = runDeterministic(lowSpend);
+    const highYears = runDeterministic(highSpend);
+
+    const low65 = lowYears.find(y => y.age === 65);
+    const high65 = highYears.find(y => y.age === 65);
+
+    if (low65 && high65) {
+      expect(high65.federalTax).toBeGreaterThanOrEqual(low65.federalTax);
+    }
+  });
+
+  it('state tax rate increases total tax burden', () => {
+    const noState = { ...DEFAULT_STATE, stateTaxRate: 0 };
+    const withState = { ...DEFAULT_STATE, stateTaxRate: 5 };
+
+    const noYears = runDeterministic(noState);
+    const withYears = runDeterministic(withState);
+
+    const last = noYears.length - 1;
+    // With state tax, total wealth should be lower (more taxes paid)
+    expect(withYears[last].total).toBeLessThan(noYears[last].total);
+  });
+
+  it('federal tax is always non-negative', () => {
+    const years = runDeterministic(DEFAULT_STATE);
+    for (const y of years) {
+      expect(y.federalTax).toBeGreaterThanOrEqual(0);
+    }
+  });
+});
+
 // ─── Pension income ──────────────────────────────────────────────────────────
 
 describe('pension income', () => {

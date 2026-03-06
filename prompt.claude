@@ -1,13 +1,4 @@
----
-active: true
-iteration: 53
-session_id: 
-max_iterations: 0
-completion_promise: null
-started_at: "2026-03-06T03:49:05Z"
----
-
-You are implementing a development task in this repository.
+/ralph-loop:ralph-loop "You are implementing a development task in this repository.
 
 Goal:
 Read goals from the GOAL.md file
@@ -21,4 +12,4 @@ Process:
 
 Stop when the goal is completed and tests pass.
 
-When finished print exactly: DONE_DONE_DONE
+When finished print exactly: DONE_DONE_DONE"

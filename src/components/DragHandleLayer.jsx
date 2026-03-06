@@ -1,5 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useXAxisDomain, usePlotArea } from 'recharts';
+import { useXAxisDomain, usePlotArea, ZIndexLayer } from 'recharts';
+
+// Render drag handles above ReferenceLine (400) and tooltip cursor (1100)
+const DRAG_HANDLE_Z_INDEX = 1500;
 
 const HANDLE_WIDTH = 14;
 
@@ -24,14 +27,18 @@ export function DragHandleLayer({ state, updateFields }) {
 
   // SVG-local X to age
   const svgXToAge = useCallback((svgX) => {
-    if (!domain || !plotArea) return 0;
-    return Math.round(domain[0] + ((svgX - plotArea.x) / plotArea.width) * (domain[1] - domain[0]));
+    if (!domain || !plotArea || domain.length < 2) return 0;
+    const minAge = domain[0];
+    const maxAge = domain[domain.length - 1];
+    return Math.round(minAge + ((svgX - plotArea.x) / plotArea.width) * (maxAge - minAge));
   }, [domain, plotArea]);
 
   // Age to SVG-local X
   const ageToSvgX = useCallback((age) => {
-    if (!domain || !plotArea) return 0;
-    return plotArea.x + ((age - domain[0]) / (domain[1] - domain[0])) * plotArea.width;
+    if (!domain || !plotArea || domain.length < 2) return 0;
+    const minAge = domain[0];
+    const maxAge = domain[domain.length - 1];
+    return plotArea.x + ((age - minAge) / (maxAge - minAge)) * plotArea.width;
   }, [domain, plotArea]);
 
   const commitDrag = useCallback((handle, newAge) => {
@@ -146,33 +153,35 @@ export function DragHandleLayer({ state, updateFields }) {
   }
 
   return (
-    <g>
-      {/* Ghost line during drag */}
-      {ghostAge != null && (
-        <line
-          x1={ageToSvgX(ghostAge)}
-          x2={ageToSvgX(ghostAge)}
-          y1={chartTop}
-          y2={chartTop + chartHeight}
-          stroke="#666"
-          strokeWidth={2}
-          strokeDasharray="4 3"
-          pointerEvents="none"
-        />
-      )}
-      {/* Drag handles */}
-      {handles.map((h) => (
-        <rect
-          key={h.testId}
-          data-testid={h.testId}
-          x={ageToSvgX(h.currentAge) - HANDLE_WIDTH / 2}
-          y={chartTop}
-          width={HANDLE_WIDTH}
-          height={chartHeight}
-          className="drag-handle-rect"
-          onMouseDown={(e) => onMouseDown(e, h)}
-        />
-      ))}
-    </g>
+    <ZIndexLayer zIndex={DRAG_HANDLE_Z_INDEX}>
+      <g>
+        {/* Ghost line during drag */}
+        {ghostAge != null && (
+          <line
+            x1={ageToSvgX(ghostAge)}
+            x2={ageToSvgX(ghostAge)}
+            y1={chartTop}
+            y2={chartTop + chartHeight}
+            stroke="#666"
+            strokeWidth={2}
+            strokeDasharray="4 3"
+            pointerEvents="none"
+          />
+        )}
+        {/* Drag handles */}
+        {handles.map((h) => (
+          <rect
+            key={h.testId}
+            data-testid={h.testId}
+            x={ageToSvgX(h.currentAge) - HANDLE_WIDTH / 2}
+            y={chartTop}
+            width={HANDLE_WIDTH}
+            height={chartHeight}
+            className="drag-handle-rect"
+            onMouseDown={(e) => onMouseDown(e, h)}
+          />
+        ))}
+      </g>
+    </ZIndexLayer>
   );
 }

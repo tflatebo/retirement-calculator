@@ -51,9 +51,12 @@ test.describe('Chart drag handles', () => {
   });
 
   test('dragging retirement handle updates first spending phase startAge', async ({ page }) => {
-    // Open the Spending Phases panel (use .panel-title to avoid matching chart subtitle)
-    await page.locator('.panel-title', { hasText: 'Spending Phases' }).click();
-    await page.waitForTimeout(200);
+    // Ensure the Spending Phases panel is open (it starts open by default; don't close it)
+    const spendingPanelBtn = page.locator('.panel-header').filter({ hasText: 'Spending Phases' });
+    if ((await spendingPanelBtn.getAttribute('aria-expanded')) !== 'true') {
+      await spendingPanelBtn.click();
+      await page.waitForTimeout(200);
+    }
 
     // Find the first spending phase's Start Age input (value = 55 by default)
     const allInputs = await page.locator('input[type="number"]').all();
@@ -85,9 +88,12 @@ test.describe('Chart drag handles', () => {
   });
 
   test('dragging phase boundary updates adjacent phase edges', async ({ page }) => {
-    // Open spending phases panel
-    await page.locator('.panel-title', { hasText: 'Spending Phases' }).click();
-    await page.waitForTimeout(200);
+    // Ensure the Spending Phases panel is open (it starts open by default; don't close it)
+    const spendingPanelBtn = page.locator('.panel-header').filter({ hasText: 'Spending Phases' });
+    if ((await spendingPanelBtn.getAttribute('aria-expanded')) !== 'true') {
+      await spendingPanelBtn.click();
+      await page.waitForTimeout(200);
+    }
 
     // Default phases: [55-64], [65-74], [75-90]
     const handle = page.locator('[data-testid="drag-handle-phase-0-end"]');
@@ -96,10 +102,12 @@ test.describe('Chart drag handles', () => {
     expect(box).not.toBeNull();
 
     // Find inputs with value "64" (phase 0 endAge) and "65" (phase 1 startAge)
-    const allInputs = await page.locator('input[type="number"]').all();
+    // Search within the Spending Phases panel to avoid matching other inputs (e.g. pensionStartAge=65)
+    const spendingPanel = page.locator('.panel').filter({ hasText: 'Spending Phases' });
+    const spendingInputs = await spendingPanel.locator('input[type="number"]').all();
     let phase0EndInput = null;
     let phase1StartInput = null;
-    for (const input of allInputs) {
+    for (const input of spendingInputs) {
       const val = await input.inputValue();
       if (val === '64' && !phase0EndInput) phase0EndInput = input;
       if (val === '65' && !phase1StartInput) phase1StartInput = input;
