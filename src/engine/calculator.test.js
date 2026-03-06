@@ -105,6 +105,8 @@ describe('DEFAULT_STATE schema completeness', () => {
     'spouseDeathAge',
     'spouseDeathSpendingReduction',
     'realReturn',
+    'bondsReturnRate',
+    'stocksAllocationPct',
     'inflationRate',
     'numSimulations',
     'mcSigma',
@@ -489,6 +491,62 @@ describe('federal tax computation', () => {
     for (const y of years) {
       expect(y.federalTax).toBeGreaterThanOrEqual(0);
     }
+  });
+});
+
+// ─── Per-account ledger accounting ───────────────────────────────────────────
+
+describe('per-account ledger accounting', () => {
+  it('preTax ledger balances: opening + flows = ending', () => {
+    const years = runDeterministic(DEFAULT_STATE);
+    const decumYears = years.filter(y => !y.isAccumulation);
+
+    for (let i = 1; i < decumYears.length; i++) {
+      const prev = decumYears[i - 1];
+      const curr = decumYears[i];
+
+      const opening = prev.preTax;
+      const growth = curr.preTaxReturn;
+      const contribs = curr.preTaxContrib || 0;
+      const rothConv = curr.rothConversion || 0;
+      const spendingDraw = (curr.preTaxDrawn || 0) - (curr.cashRefillFromPreTaxGross || 0);
+      const refillGross = curr.cashRefillFromPreTaxGross || 0;
+      const computed = opening + growth + contribs - rothConv - spendingDraw - refillGross;
+
+      expect(Math.abs(computed - curr.preTax)).toBeLessThan(1);
+    }
+  });
+
+  it('cashRefillFromPreTaxGross is tracked separately when source is preTax', () => {
+    // Set up a state where cash refill from preTax is likely
+    const state = {
+      ...DEFAULT_STATE,
+      targetCashBufferMonths: 36, // large buffer triggers more refills
+      cashBalance: 0,             // start with no cash to force refills
+    };
+    const years = runDeterministic(state);
+    const preTaxRefillYear = years.find(y => !y.isAccumulation && y.cashRefillSource === 'preTax');
+
+    if (preTaxRefillYear) {
+      // When source is preTax, cashRefillFromPreTaxGross must be tracked
+      expect(preTaxRefillYear.cashRefillFromPreTaxGross).toBeDefined();
+      expect(preTaxRefillYear.cashRefillFromPreTaxGross).toBeGreaterThan(0);
+      // Gross must be >= net (tax is paid on the gross withdrawal)
+      expect(preTaxRefillYear.cashRefillFromPreTaxGross).toBeGreaterThanOrEqual(preTaxRefillYear.cashRefill);
+    }
+  });
+
+  it('stocks/bonds blended return is used when allocation < 100%', () => {
+    const allStocks = { ...DEFAULT_STATE, stocksAllocationPct: 100 };
+    const mixed = { ...DEFAULT_STATE, stocksAllocationPct: 60, bondsReturnRate: 1.0 };
+
+    const stocksYears = runDeterministic(allStocks);
+    const mixedYears = runDeterministic(mixed);
+
+    // Mixed allocation (lower effective return) should accumulate less wealth
+    const lastStocks = stocksYears[stocksYears.length - 1];
+    const lastMixed = mixedYears[mixedYears.length - 1];
+    expect(lastStocks.total).toBeGreaterThan(lastMixed.total);
   });
 });
 

@@ -48,7 +48,7 @@ npm run test:e2e  # E2E tests (Playwright)
 ```
 
 **Unit test coverage** (`src/**/*.test.js`):
-- `engine/calculator.test.js` — integration tests for `runDeterministic`, `runMonteCarlo`, `computeSummary`; feature tests for SS, spouse death, inflation, RMDs, withdrawal strategies, Roth conversion, healthcare, pension, federal/state tax
+- `engine/calculator.test.js` — integration tests for `runDeterministic`, `runMonteCarlo`, `computeSummary`; feature tests for SS, spouse death, inflation, RMDs, withdrawal strategies, Roth conversion, healthcare, pension, federal/state tax, stocks/bonds allocation, per-account ledger accounting
 - `utils/format.test.js` — `formatCurrency` and `formatPercent` edge cases
 - `utils/ranges.test.js` — `groupConsecutive` and `formatRanges` correctness
 

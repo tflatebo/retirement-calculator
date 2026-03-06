@@ -3,13 +3,17 @@ import { test, expect } from '@playwright/test';
 test.describe('YearTable', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    // Wait for the app to render and MC simulation to complete
+    // Wait for basic app render
     await page.waitForSelector('.top-strip', { timeout: 10000 });
     // Open the Year-over-Year Detail panel
     const panelHeader = page.locator('text=Year-over-Year Detail');
     await panelHeader.click();
     // Wait for the table to render
     await page.waitForSelector('.year-table tbody tr', { timeout: 5000 });
+    // Wait for MC simulation to complete — the median mode selector only appears
+    // once MC data arrives from the Web Worker. Without this, a mid-scroll
+    // re-render from MC completing can shift the table and make the sticky test flaky.
+    await page.waitForSelector('#totalModeSelect', { timeout: 30000 });
   });
 
   test('sticky header stays visible when scrolling the table', async ({ page }) => {

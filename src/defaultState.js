@@ -7,6 +7,8 @@ export const DEFAULT_STATE = {
   retirementAge: 55,
   endOfPlanAge: 90,
   realReturn: 5.0,
+  bondsReturnRate: 2.0,
+  stocksAllocationPct: 60,
   inflationRate: 3.0,
   numSimulations: 1000,
   mcSigma: 12.0,

@@ -85,13 +85,31 @@ export function GlobalInputs() {
           </p>
         )}
         <InputField
-          label="Expected Annual Return (after inflation) %"
+          label="Stock Return Rate (after inflation) %"
           name="realReturn"
           value={state.realReturn}
           onChange={updateField}
           min={0} max={20} step={0.1}
           suffix="%"
-          helpText="Annual return after subtracting inflation. If you expect 8% nominal returns and 3% inflation, enter 5%. Most planners use 4–6%."
+          helpText="Annual real return for equities after subtracting inflation. If you expect 8% nominal stock returns and 3% inflation, enter 5%."
+        />
+        <InputField
+          label="Bond Return Rate (after inflation) %"
+          name="bondsReturnRate"
+          value={state.bondsReturnRate}
+          onChange={updateField}
+          min={-2} max={10} step={0.1}
+          suffix="%"
+          helpText="Annual real return for bonds after subtracting inflation. Bonds typically return 1–3% real. Default 2%."
+        />
+        <InputField
+          label="Stocks Allocation %"
+          name="stocksAllocationPct"
+          value={state.stocksAllocationPct}
+          onChange={updateField}
+          min={0} max={100} step={5}
+          suffix="%"
+          helpText="Percentage of invested portfolio in stocks. The rest is in bonds. 60% stocks / 40% bonds is a common balanced portfolio."
         />
         <InputField
           label="Assumed Inflation Rate %"

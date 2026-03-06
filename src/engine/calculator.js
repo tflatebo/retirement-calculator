@@ -182,6 +182,8 @@ export function runSimulation(state, returnSampler) {
     marketDeclineThreshold,
     cashReturnRate = 4.0,
     spendingPhases,
+    bondsReturnRate = 2.0,
+    stocksAllocationPct = 100,
     // New tax / strategy fields (with defaults for backward compatibility)
     filingStatus = 'mfj',
     standardDeduction = 30000,
@@ -275,6 +277,7 @@ export function runSimulation(state, returnSampler) {
     let preTaxDrawn = 0;
     let rothDrawn = 0;
     let cashRefill = 0;
+    let cashRefillFromPreTaxGross = 0;
     let cashRefillSource = '';
     let taxPaidFromCash = 0;
     let taxPaidFromTaxable = 0;
@@ -693,6 +696,7 @@ export function runSimulation(state, returnSampler) {
           preTaxDrawn += refill; // KEY: add to preTaxDrawn so final tax computation covers it
           cash += needed; // Add net amount; actual tax will be deducted in final tax pass
           cashRefill = needed;
+          cashRefillFromPreTaxGross = refill;
           cashRefillSource = 'preTax';
         } else if (roth > 0) {
           const refill = Math.min(roth, needed);
@@ -747,6 +751,7 @@ export function runSimulation(state, returnSampler) {
       preTaxDrawn,
       rothDrawn,
       cashRefill,
+      cashRefillFromPreTaxGross,
       cashRefillSource,
       taxPaidFromCash,
       taxPaidFromTaxable,
@@ -761,10 +766,21 @@ export function runSimulation(state, returnSampler) {
 }
 
 /**
- * Deterministic simulation using the exact real return input each year.
+ * Compute the blended effective return based on stocks/bonds allocation.
+ * stocksAllocationPct% of portfolio earns realReturn, rest earns bondsReturnRate.
+ */
+function effectiveReturnRate(state) {
+  const w = (state.stocksAllocationPct ?? 100) / 100;
+  const stockR = state.realReturn / 100;
+  const bondR = (state.bondsReturnRate ?? 2.0) / 100;
+  return w * stockR + (1 - w) * bondR;
+}
+
+/**
+ * Deterministic simulation using the blended effective return each year.
  */
 export function runDeterministic(state) {
-  const r = state.realReturn / 100;
+  const r = effectiveReturnRate(state);
   return runSimulation(state, () => 1 + r);
 }
 
@@ -804,9 +820,9 @@ function lognormalReturn(mu, sigma, rand) {
  * Returns percentile data by age: { age, p10, p50, p90 }[]
  */
 export function runMonteCarlo(state) {
-  const { numSimulations, realReturn } = state;
+  const { numSimulations } = state;
   if (numSimulations < 1) return [];
-  const r = realReturn / 100;
+  const r = effectiveReturnRate(state);
   const sigma = (state.mcSigma ?? 12) / 100;
   // Lognormal parameterization: mu = log(1+r) - sigma^2/2
   const mu = Math.log(1 + r) - (sigma * sigma) / 2;
@@ -875,7 +891,7 @@ export function computeSummary(state, deterministicYears, monteCarloData) {
   // "Enough number": rough estimate of what you need at retirement
   // Sum of PV of all spending phases starting from retirement
   let requiredAtRetirement = 0;
-  const r = state.realReturn / 100;
+  const r = effectiveReturnRate(state);
   state.spendingPhases.forEach(phase => {
     const phaseYears = phase.endAge - phase.startAge + 1;
     const yearsFromRetirement = phase.startAge - state.retirementAge;
