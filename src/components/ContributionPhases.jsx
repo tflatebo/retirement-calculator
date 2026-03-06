@@ -1,7 +1,6 @@
 import React from 'react';
 import { useAppState } from '../context/StateContext';
 import { CollapsiblePanel } from './CollapsiblePanel';
-import { formatCurrency } from '../utils/format';
 import { groupConsecutive, formatRanges } from '../utils/ranges';
 
 export function ContributionPhases() {

@@ -23,46 +23,6 @@ const FEDERAL_BRACKETS_SINGLE = [
   { rate: 0.32 }, // catch-all
 ];
 
-/**
- * Calculate federal income tax using progressive brackets.
- * @param {number} taxableIncome - income after standard deduction
- * @param {string} filingStatus - 'mfj' | 'single'
- * @returns {number} tax owed in dollars
- */
-function calcFederalTax(taxableIncome, filingStatus) {
-  if (taxableIncome <= 0) return 0;
-  const brackets = filingStatus === 'single' ? FEDERAL_BRACKETS_SINGLE : FEDERAL_BRACKETS_MFJ;
-  let tax = 0;
-  let prev = 0;
-  for (const bracket of brackets) {
-    if (bracket.upTo === undefined) {
-      tax += Math.max(0, taxableIncome - prev) * bracket.rate;
-      break;
-    }
-    const layerTop = Math.min(taxableIncome, bracket.upTo);
-    if (layerTop <= prev) break;
-    tax += (layerTop - prev) * bracket.rate;
-    prev = bracket.upTo;
-    if (taxableIncome <= bracket.upTo) break;
-  }
-  return tax;
-}
-
-/**
- * Get the ceiling (top) income value for a given bracket rate.
- * Used to determine how much income fits within a target bracket.
- * @param {number} rate - bracket rate as a percentage integer (e.g. 22)
- * @param {string} filingStatus
- * @returns {number} upper bound of that bracket, or Infinity for the top bracket
- */
-function getBracketCeiling(rate, filingStatus) {
-  const brackets = filingStatus === 'single' ? FEDERAL_BRACKETS_SINGLE : FEDERAL_BRACKETS_MFJ;
-  for (const b of brackets) {
-    if (b.rate === rate / 100 && b.upTo) return b.upTo;
-  }
-  return Infinity;
-}
-
 // ─── RMD (Required Minimum Distribution) ────────────────────────────────────
 
 const RMD_START_AGE = 73;
@@ -133,17 +93,6 @@ const LTCG_BRACKETS_MFJ = [
   { upTo: 583750, rate: 0.15 },
   { rate: 0.20 },
 ];
-
-/**
- * Get the long-term capital gains rate for a given total income.
- */
-function getLtcgRate(totalIncome, filingStatus) {
-  const brackets = filingStatus === 'single' ? LTCG_BRACKETS_SINGLE : LTCG_BRACKETS_MFJ;
-  for (const b of brackets) {
-    if (b.upTo === undefined || totalIncome <= b.upTo) return b.rate;
-  }
-  return 0.20;
-}
 
 /**
  * Return a new bracket array with all upTo thresholds multiplied by inflationFactor.
@@ -221,7 +170,6 @@ export function runSimulation(state, returnSampler) {
     person2Age = person1Age,
     retirementAge,
     endOfPlanAge,
-    realReturn,
     contributionPhases,
     rothConversionStartAge,
     rothConversionEndAge,
@@ -337,7 +285,6 @@ export function runSimulation(state, returnSampler) {
 
     if (isAccumulation) {
       // --- ACCUMULATION PHASE ---
-      const preGrowthCash = cash;
       const preGrowthTaxable = taxable;
       const preGrowthPreTax = preTax;
       const preGrowthRoth = roth;
@@ -392,7 +339,6 @@ export function runSimulation(state, returnSampler) {
       const preGrowthTaxable = taxable;
       const preGrowthPreTax = preTax;
       const preGrowthRoth = roth;
-      const preGrowthCash = cash;
 
       // Grow investment accounts
       taxable *= returnMultiplier;

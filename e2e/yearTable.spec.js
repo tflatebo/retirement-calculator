@@ -72,11 +72,11 @@ test.describe('YearTable', () => {
     const rows = page.locator('.year-table tbody tr.row-decum');
     const lastRow = rows.last();
     const totalCell = lastRow.locator('td').nth(7);
-    const detTotal = await totalCell.innerText();
+    const _detTotal = await totalCell.innerText();
 
     // Switch to median
     await select.selectOption('median');
-    const medTotal = await totalCell.innerText();
+    const _medTotal = await totalCell.innerText();
 
     // They should typically differ (MC median vs fixed return)
     // Just verify the toggle actually changes the display

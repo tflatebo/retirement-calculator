@@ -7,7 +7,7 @@ export function useLocalStorage(key, defaultValue) {
       if (stored !== null) {
         return JSON.parse(stored);
       }
-    } catch (e) {
+    } catch {
       // ignore parse errors
     }
     return defaultValue;
@@ -16,7 +16,7 @@ export function useLocalStorage(key, defaultValue) {
   useEffect(() => {
     try {
       localStorage.setItem(key, JSON.stringify(value));
-    } catch (e) {
+    } catch {
       // ignore storage errors
     }
   }, [key, value]);

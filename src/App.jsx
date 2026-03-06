@@ -99,28 +99,29 @@ function App() {
 
   // PERF-1: Send state to worker on change, debounced 300ms
   useEffect(() => {
-    if (configInvalid) {
-      setMcData([]);
-      setMcPending(false);
-      return;
-    }
+    if (configInvalid) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMcPending(true);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       workerRef.current?.postMessage({ state: mergedState });
     }, 300);
-  }, [mergedState, configInvalid]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mergedState, configInvalid]);
+
+  // When config is invalid, treat MC data/pending as empty/false without setState
+  const effectiveMcData = useMemo(() => configInvalid ? [] : mcData, [configInvalid, mcData]);
+  const effectiveMcPending = configInvalid ? false : mcPending;
 
   // Compute summary stats
   const summary = useMemo(() => {
-    if (!deterministicYears.length || !mcData.length) return null;
+    if (!deterministicYears.length || !effectiveMcData.length) return null;
     try {
-      return computeSummary(mergedState, deterministicYears, mcData);
+      return computeSummary(mergedState, deterministicYears, effectiveMcData);
     } catch (e) {
       console.error('Summary error:', e);
       return null;
     }
-  }, [mergedState, deterministicYears, mcData]);
+  }, [mergedState, deterministicYears, effectiveMcData]);
 
   const contextValue = useMemo(() => ({
     state: mergedState,
@@ -193,17 +194,17 @@ function App() {
             {/* PERF-1: show pending indicator while worker computes */}
             <ErrorBoundary>
               <div style={{ position: 'relative' }}>
-                {mcPending && (
+                {effectiveMcPending && (
                   <div className="mc-pending-overlay">Calculating…</div>
                 )}
                 <MainChart
-                  mcData={mcData}
+                  mcData={effectiveMcData}
                   deterministicYears={deterministicYears}
                 />
               </div>
             </ErrorBoundary>
             <ErrorBoundary>
-              <YearTable years={deterministicYears} mcData={mcData} state={mergedState} />
+              <YearTable years={deterministicYears} mcData={effectiveMcData} state={mergedState} />
             </ErrorBoundary>
           </main>
         </div>

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 
 test('debug plotArea and domain values', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 });
