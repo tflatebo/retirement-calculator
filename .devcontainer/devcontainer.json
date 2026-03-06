@@ -1,0 +1,27 @@
+// For format details, see https://aka.ms/devcontainer.json
+{
+  "name": "Ubuntu",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    }
+  },
+
+  "forwardPorts": [5173],
+
+  // Persist Claude Code sessions/config across container rebuilds
+  "mounts": [
+    "source=vscode-home,target=/home/vscode,type=volume"
+  ],
+
+  // Use bash on Ubuntu (safer if your script has bash-isms)
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["anthropic.claude-code"]
+    }
+  }
+}
