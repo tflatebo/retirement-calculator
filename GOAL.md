@@ -1,19 +1,9 @@
 # Plan
 
 ## Bug fix: Fix math bug
-- when viewing the popup data table on the pre-tax annount, the math doesn't make any sense
-- the starting balance is $0, and the popup shows that there is investment growth of +$14k, withdrawal of -$49k, and cash replenishment of -$19k, this cannot be correct
-- i want you to review alll of the math
-- i want each account to maintain a ledger just like an accounting system, with common sense rules where you cannot withdraw if the account is <=$0
-- also, I want to see the net for each year on all accounts, not just the total
-
-## Bug fix: Check on the feature for volatility
-- if I move the volatility down, my final balance at the end of the plan goes up
-- This doesn't make sense to me, I would expect it to go down since the return rate on bonds is lower than stocks (usually)
-- Make sure that you are modeling the return rate of bonds and stocks separately
-- the return rate in the UI is for stocks, I have no idea what it should be for bonds, expose soemthing but set a sane default value
-
-## Feature: Create a separate return rate for cash
-- cash investment returns are usually just slightly above inflation
-- Similar to bonds, use a separate rate of return and set a sane default
-- then update the math models to use that for cash rate investment returns
+- when viewing the popup data table on the pre-tax annount, the math still doesn't make any sense
+- this is the thrid time I asked you to look at this, I need you to take a deeper look
+- these accounts shoudl have ledgers, the ledgers shoudl follow basic math principles
+- right now, if I look at the pre-tax and cash, the math doesn't make sense, the inflows and outflows do not equal the final balance, and the pre-tax is showing $0 starting balance in the table, but in the overlay table, it shows having a non-zero starting balance, and in the roth account, for one year it shows an opening balance of $1.2M, growth of $47k, and an ending balance of $671k. Are you even using basic accounting math for this?
+- Do some research and figure out how to model these account properly so that you are using double-entry ledger logic
+- Find out why this is happening, write tests for how this should work, then fix the logic in the code

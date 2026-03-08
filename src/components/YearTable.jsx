@@ -223,6 +223,7 @@ export function YearTable({ years, mcData, state }) {
                 taxPaidFromRoth = 0,
                 ltcgTax = 0,
                 stateTax = 0,
+                rmdForcedCashIn = 0,
               } = row;
 
               const prevRow = prevByAge[row.age];
@@ -243,6 +244,7 @@ export function YearTable({ years, mcData, state }) {
                 { label: 'Opening balance', value: openCash, sign: '', condition: openCash != null },
                 { label: 'Interest earned', value: cashReturn, sign: '+', condition: cashReturn > 0 },
                 { label: 'Contribution', value: cashContrib, sign: '+', condition: cashContrib > 0 },
+                { label: 'RMD proceeds (gross)', value: rmdForcedCashIn, sign: '+', condition: rmdForcedCashIn > 0 },
                 { label: 'Cash replenishment (in)', value: cashRefill, sign: '+', condition: cashRefill > 0 },
                 { label: 'Spending withdrawal', value: cashDrawn, sign: '-', condition: cashDrawn > 0 },
                 { label: 'Tax payment', value: taxPaidFromCash, sign: '-', condition: taxPaidFromCash > 0 },
@@ -256,7 +258,6 @@ export function YearTable({ years, mcData, state }) {
                 { label: 'Spending withdrawal', value: taxableDrawn, sign: '-', condition: taxableDrawn > 0 },
                 { label: 'Tax payment', value: taxPaidFromTaxable, sign: '-', condition: taxPaidFromTaxable > 0 },
                 { label: 'Cash replenishment (out)', value: cashRefill, sign: '-', condition: cashRefillSource === 'taxable' && cashRefill > 0 },
-                { label: 'LTCG tax (embedded)', value: ltcgTax, sign: '-', condition: ltcgTax > 0 },
               ];
 
               // Tooltip rows for Pre-Tax
@@ -314,7 +315,7 @@ export function YearTable({ years, mcData, state }) {
                   <CellTooltip
                     rows={cashRows}
                     endingLabel={openCash != null ? `Net: ${row.cash - openCash >= 0 ? '+' : ''}${formatCurrency(row.cash - openCash, true)}` : 'Ending balance'}
-                    endingBalance={displayCash}
+                    endingBalance={row.cash}
                   >
                     {formatCurrency(displayCash, true)}
                   </CellTooltip>
@@ -322,7 +323,7 @@ export function YearTable({ years, mcData, state }) {
                   <CellTooltip
                     rows={taxableRows}
                     endingLabel={openTaxable != null ? `Net: ${row.taxable - openTaxable >= 0 ? '+' : ''}${formatCurrency(row.taxable - openTaxable, true)}` : 'Ending balance'}
-                    endingBalance={displayTaxable}
+                    endingBalance={row.taxable}
                   >
                     {formatCurrency(displayTaxable, true)}
                   </CellTooltip>
@@ -330,7 +331,7 @@ export function YearTable({ years, mcData, state }) {
                   <CellTooltip
                     rows={preTaxRows}
                     endingLabel={openPreTax != null ? `Net: ${row.preTax - openPreTax >= 0 ? '+' : ''}${formatCurrency(row.preTax - openPreTax, true)}` : 'Ending balance'}
-                    endingBalance={displayPreTax}
+                    endingBalance={row.preTax}
                   >
                     {formatCurrency(displayPreTax, true)}
                   </CellTooltip>
@@ -338,7 +339,7 @@ export function YearTable({ years, mcData, state }) {
                   <CellTooltip
                     rows={rothRows}
                     endingLabel={openRoth != null ? `Net: ${row.roth - openRoth >= 0 ? '+' : ''}${formatCurrency(row.roth - openRoth, true)}` : 'Ending balance'}
-                    endingBalance={displayRoth}
+                    endingBalance={row.roth}
                   >
                     {formatCurrency(displayRoth, true)}
                   </CellTooltip>

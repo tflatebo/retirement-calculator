@@ -285,6 +285,7 @@ export function runSimulation(state, returnSampler) {
     let ltcgTax = 0;
     let stateTax = 0;
     let totalTaxForSnapshot = 0;
+    let rmdForcedCashIn = 0;
 
     if (isAccumulation) {
       // --- ACCUMULATION PHASE ---
@@ -596,19 +597,12 @@ export function runSimulation(state, returnSampler) {
         const rmdShortfall = rmdAmount - preTaxDrawn;
         const actualForced = Math.min(preTax, rmdShortfall);
         if (actualForced > 0) {
-          // Compute tax on the forced RMD amount
-          const currentOrdinary = preTaxDrawn + conversionTaxableAmount;
-          const forcedTaxableIncome = Math.max(0, currentOrdinary + actualForced - yearStandardDeduction);
-          const baseTax = calcFederalTaxWithBrackets(Math.max(0, currentOrdinary - yearStandardDeduction), yearBrackets);
-          const totalTaxWithForced = calcFederalTaxWithBrackets(forcedTaxableIncome, yearBrackets);
-          const taxOnForced = totalTaxWithForced - baseTax;
-
           preTax -= actualForced;
           preTaxDrawn += actualForced;
-
-          // Net after-tax proceeds go to cash
-          const netForced = actualForced - taxOnForced;
-          cash += Math.max(0, netForced);
+          // Gross proceeds deposited to cash; final tax computation (below) will
+          // include this in ordinary income and deduct the tax from cash.
+          cash += actualForced;
+          rmdForcedCashIn = actualForced;
         }
       }
 
@@ -759,6 +753,7 @@ export function runSimulation(state, returnSampler) {
       ltcgTax,
       stateTax,
       totalTax: totalTaxForSnapshot,
+      rmdForcedCashIn,
     });
   }
 

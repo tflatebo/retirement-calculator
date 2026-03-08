@@ -548,6 +548,75 @@ describe('per-account ledger accounting', () => {
     const lastMixed = mixedYears[mixedYears.length - 1];
     expect(lastStocks.total).toBeGreaterThan(lastMixed.total);
   });
+
+  // State designed to trigger forced RMD: SS income covers all spending,
+  // so preTaxDrawn = 0 for spending at age 73+ but RMD is still required.
+  const forcedRmdState = {
+    ...DEFAULT_STATE,
+    person1Age: 70,
+    retirementAge: 55,
+    endOfPlanAge: 85,
+    person1SsStartAge: 70,
+    person2SsStartAge: 70,
+    person1SSMonthly: 4000,  // $48k/year
+    person2SSMonthly: 3000,  // $36k/year — total $84k covers all spending
+    spendingPhases: [{ id: 1, name: 'Retirement', startAge: 55, endAge: 85, annualSpend: 50000 }],
+    preTaxBalance: 2000000,
+    cashBalance: 100000,
+    taxableBalance: 0,
+    rothBalance: 0,
+    rothConversionAmount: 0,
+    contributionPhases: [],
+    targetCashBufferMonths: 1,
+  };
+
+  it('cash ledger balances: opening + all flows (including forced RMD proceeds) = ending', () => {
+    const years = runDeterministic(forcedRmdState);
+
+    // Verify at least one year has a forced RMD deposit to cash
+    const rmdYear = years.find(y => !y.isAccumulation && (y.rmdForcedCashIn || 0) > 0);
+    expect(rmdYear).toBeDefined();
+
+    const decumYears = years.filter(y => !y.isAccumulation);
+    for (let i = 1; i < decumYears.length; i++) {
+      const prev = decumYears[i - 1];
+      const curr = decumYears[i];
+
+      const computed =
+        prev.cash
+        + (curr.cashReturn || 0)
+        + (curr.cashContrib || 0)
+        + (curr.cashRefill || 0)
+        + (curr.rmdForcedCashIn || 0)
+        - (curr.cashDrawn || 0)
+        - (curr.taxPaidFromCash || 0);
+
+      expect(Math.abs(computed - curr.cash)).toBeLessThan(1);
+    }
+  });
+
+  it('roth ledger balances: opening + all flows = ending', () => {
+    const years = runDeterministic(DEFAULT_STATE);
+    const decumYears = years.filter(y => !y.isAccumulation);
+
+    for (let i = 1; i < decumYears.length; i++) {
+      const prev = decumYears[i - 1];
+      const curr = decumYears[i];
+
+      const cashRefillFromRoth = curr.cashRefillSource === 'roth' ? (curr.cashRefill || 0) : 0;
+
+      const computed =
+        prev.roth
+        + (curr.rothReturn || 0)
+        + (curr.rothContrib || 0)
+        + (curr.rothConversion || 0)
+        - (curr.rothDrawn || 0)
+        - (curr.taxPaidFromRoth || 0)
+        - cashRefillFromRoth;
+
+      expect(Math.abs(computed - curr.roth)).toBeLessThan(1);
+    }
+  });
 });
 
 // ─── Pension income ──────────────────────────────────────────────────────────

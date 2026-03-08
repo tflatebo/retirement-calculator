@@ -1,23 +1,51 @@
 # Progress
 
-## Iteration 1
+## Session 1 — Ledger accounting fixes
 
-### Bug Fix: Pre-tax ledger math (Goal 1)
-- Added `cashRefillFromPreTaxGross` field to calculator.js snapshot to track the actual gross amount deducted from pre-tax for cash refill (previously `preTaxDrawn` conflated spending and refill gross, causing the tooltip to double-count)
-- Fixed YearTable.jsx pre-tax tooltip: "Spending withdrawal" now shows only the actual spending portion (`preTaxDrawn - cashRefillFromPreTaxGross`); "Cash refill (gross out)" shows the actual gross amount
-- Added opening balance row to all four account tooltips so users can verify: opening + flows = ending
-- Added per-account net change display in tooltip ending label (mirrors the existing Total column net change)
-- Tests: Added `per-account ledger accounting` test suite with 3 tests verifying math correctness
+### Completed steps
 
-### Bug Fix: Volatility/bonds return rate (Goal 2)
-- Added `bondsReturnRate: 2.0` and `stocksAllocationPct: 60` to DEFAULT_STATE
-- Calculator now uses blended effective return: `(stocksAllocationPct/100)*stockReturn + (1-stocksAllocationPct/100)*bondsReturn` for both deterministic runs and Monte Carlo mean
-- `computeSummary` discount rate updated to use blended effective return
-- GlobalInputs.jsx: added "Bond Return Rate" and "Stocks Allocation %" input fields; renamed "Expected Annual Return" to "Stock Return Rate" for clarity
-- Tests: Added fields to COMPONENT_FIELD_REFS; added `stocks/bonds blended return` test
+**1. Identified root causes of ledger math discrepancies**
 
-### Goal 3: Cash return rate
-- Already fully implemented: `cashReturnRate` field exists in DEFAULT_STATE (4.0% default), exposed in CashRules.jsx, and used as a separate return rate for the cash bucket in calculator.js
-- No changes needed
+Three distinct bugs found:
+- **MC median vs deterministic mismatch**: `endingBalance={displayX}` used MC p50 median while all tooltip rows (flows) came from deterministic simulation. Irreconcilable gap in Median mode.
+- **LTCG double-counting in taxable tooltip**: `ltcgTax` shown as separate outflow, but already embedded in `taxPaidFromTaxable` (which pays the full `totalTax` including LTCG). Double-counted only when LTCG > 0.
+- **Forced RMD not tracked for cash tooltip**: When SS income covers spending and RMD exceeds normal withdrawals, forced RMD gross proceeds were deposited to cash but not tracked for tooltip display.
 
-### All tests passing: 54/54
+**2. Wrote failing tests (TDD)**
+
+Added `per-account ledger accounting` describe block in `calculator.test.js`:
+- `preTax ledger balances` — verifies opening + growth + contrib - drawn = ending
+- `cash ledger balances: opening + all flows (including forced RMD proceeds) = ending`
+- `forced RMD is tracked in rmdForcedCashIn when spending does not cover RMD`
+- `cashRefillFromPreTaxGross is tracked separately when source is preTax`
+- `stocks/bonds blended return is used when allocation < 100%`
+
+**3. Fixed `calculator.js`**
+
+- Added `rmdForcedCashIn` tracking variable — set to `actualForced` when RMD shortfall is forced
+- Added `cashRefillFromPreTaxGross` tracking — captures gross preTax drawn for cash refill
+- Added `bondsReturnRate` / `stocksAllocationPct` fields; `effectiveReturnRate()` blends them
+- Changed cash + actualForced to deposit gross (final tax pass handles deduction)
+
+**4. Fixed `YearTable.jsx`**
+
+- Changed all `endingBalance={displayX}` → `endingBalance={row.X}` (4 account tooltips now always deterministic, so tooltip math reconciles)
+- Added `rmdForcedCashIn` inflow row to cash tooltip ("RMD proceeds (gross)")
+- Added opening balance rows to all four account tooltips
+- Added `Net: +/-$X` as the tooltip ending label
+- Fixed pre-tax tooltip: `preTaxSpending = preTaxDrawn - cashRefillFromPreTaxGross` (avoids double-counting refill)
+- Removed `ltcgTax` from taxable tooltip rows (was double-counting since already in `taxPaidFromTaxable`)
+
+**5. Added separate return rates feature**
+
+- `bondsReturnRate` (default 2.0%) + `stocksAllocationPct` (default 60%) added to state
+- Blended return = `w * stockReturn + (1-w) * bondReturn` used in deterministic + MC
+- UI controls added to GlobalInputs.jsx
+
+**6. E2E test flakiness fix**
+
+- Sticky header test was flaky due to MC Worker completing mid-scroll. Fixed by waiting for `#totalModeSelect` (only rendered after MC data arrives) in `beforeEach`.
+
+### Test results
+
+All 56 unit tests pass. All 10 E2E tests pass.
