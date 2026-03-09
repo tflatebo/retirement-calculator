@@ -8,6 +8,8 @@ import { runDeterministic, computeSummary } from './engine/calculator';
 import { GlobalInputs } from './components/GlobalInputs';
 import { AccountBalances } from './components/AccountBalances';
 import { ContributionPhases } from './components/ContributionPhases';
+import { OneTimeInflows } from './components/OneTimeInflows';
+import { OneTimeOutflows } from './components/OneTimeOutflows';
 import { TaxInputs } from './components/TaxInputs';
 import { WithdrawalStrategy } from './components/WithdrawalStrategy';
 import { SocialSecurity } from './components/SocialSecurity';
@@ -180,6 +182,8 @@ function App() {
             <GlobalInputs />
             <AccountBalances />
             <ContributionPhases />
+            <OneTimeInflows />
+            <OneTimeOutflows />
             <TaxInputs />
             <WithdrawalStrategy />
             <SocialSecurity />
