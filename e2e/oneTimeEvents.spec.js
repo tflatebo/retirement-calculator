@@ -41,7 +41,7 @@ test.describe('One-time inflow and outflow events', () => {
     const addInflowBtn = page.locator('button.btn-add').filter({ hasText: '+ Add Inflow' });
     await addInflowBtn.scrollIntoViewIfNeeded();
     await addInflowBtn.click();
-    await page.waitForTimeout(100);
+    await expect(page.locator('.one-time-inflow-row').last()).toBeVisible();
 
     // Fill in the new inflow row
     const inflowRows = page.locator('.one-time-inflow-row');
@@ -86,7 +86,7 @@ test.describe('One-time inflow and outflow events', () => {
     const addOutflowBtn = page.locator('button.btn-add').filter({ hasText: '+ Add Outflow' });
     await addOutflowBtn.scrollIntoViewIfNeeded();
     await addOutflowBtn.click();
-    await page.waitForTimeout(100);
+    await expect(page.locator('.one-time-outflow-row').last()).toBeVisible();
 
     const outflowRows = page.locator('.one-time-outflow-row');
     const lastRow = outflowRows.last();
