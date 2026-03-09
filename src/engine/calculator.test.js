@@ -231,6 +231,9 @@ describe('DEFAULT_STATE schema completeness', () => {
     'spendingPhases',
     // ContributionPhases.jsx
     'contributionPhases',
+    // OneTimeInflows.jsx + OneTimeOutflows.jsx
+    'oneTimeInflows',
+    'oneTimeOutflows',
   ];
 
   it('every field referenced by components exists in DEFAULT_STATE', () => {
