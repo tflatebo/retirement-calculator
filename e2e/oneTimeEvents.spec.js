@@ -1,20 +1,24 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('One-time inflow and outflow events', () => {
+  // Shared parse helper — converts formatted currency strings to numbers
+  const parse = s => {
+    const str = s.trim().replace(/[$,]/g, '');
+    if (str.endsWith('M')) return parseFloat(str) * 1_000_000;
+    if (str.endsWith('K')) return parseFloat(str) * 1_000;
+    return parseFloat(str);
+  };
+
   test.beforeEach(async ({ page }) => {
+    // Clear localStorage to start from default state
     await page.goto('/');
+    await page.evaluate(() => localStorage.removeItem('retirementCalcState'));
+    await page.reload();
     await page.waitForSelector('.top-strip', { timeout: 10000 });
     // One-Time Inflows and Outflows panels default to open — no click needed
   });
 
   test('adding an inflow increases portfolio in the target year', async ({ page }) => {
-    const parse = s => {
-      const str = s.trim().replace(/[$,]/g, '');
-      if (str.endsWith('M')) return parseFloat(str) * 1_000_000;
-      if (str.endsWith('K')) return parseFloat(str) * 1_000;
-      return parseFloat(str);
-    };
-
     // Open Year-over-Year Detail first to get the baseline value
     await page.locator('text=Year-over-Year Detail').click();
     await page.waitForSelector('.year-table tbody tr', { timeout: 5000 });
@@ -28,6 +32,7 @@ test.describe('One-time inflow and outflow events', () => {
     });
     await expect(targetRow).toBeVisible({ timeout: 5000 });
 
+    // Column order: 0=Year, 1=Age, 2=Phase, 3=Cash, 4=Taxable, 5=Pre-Tax, 6=Roth, 7=Total
     const totalCell = targetRow.locator(':scope > td').nth(7);
     const totalBefore = await totalCell.innerText();
 
@@ -42,17 +47,16 @@ test.describe('One-time inflow and outflow events', () => {
     const inflowRows = page.locator('.one-time-inflow-row');
     const lastRow = inflowRows.last();
 
-    // Fields in order (type="number" only): 0=age, 1=preTax, 2=roth, 3=taxable, 4=cash
-    // Checkbox (isTaxableIncome) is NOT type="number"
-    const lastAgeInput = lastRow.locator('input[type="number"]').first();
+    const lastAgeInput = lastRow.locator('.phase-field').filter({ has: page.locator('label', { hasText: 'Age' }) }).locator('input[type="number"]');
     await lastAgeInput.fill('60');
     await lastAgeInput.blur();
 
-    const taxableInput = lastRow.locator('input[type="number"]').nth(3);
+    const taxableInput = lastRow.locator('.phase-field').filter({ has: page.locator('label', { hasText: 'Taxable' }) }).locator('input[type="number"]');
     await taxableInput.fill('500000');
     await taxableInput.blur();
 
-    await page.waitForTimeout(500); // let state settle and re-render
+    // Wait for re-render: total cell text must change from the baseline
+    await expect(totalCell).not.toHaveText(totalBefore, { timeout: 2000 });
 
     const totalAfter = await totalCell.innerText();
 
@@ -61,13 +65,6 @@ test.describe('One-time inflow and outflow events', () => {
   });
 
   test('adding an outflow decreases portfolio in the target year', async ({ page }) => {
-    const parse = s => {
-      const str = s.trim().replace(/[$,]/g, '');
-      if (str.endsWith('M')) return parseFloat(str) * 1_000_000;
-      if (str.endsWith('K')) return parseFloat(str) * 1_000;
-      return parseFloat(str);
-    };
-
     // Open Year-over-Year Detail first to get the baseline value
     await page.locator('text=Year-over-Year Detail').click();
     await page.waitForSelector('.year-table tbody tr', { timeout: 5000 });
@@ -80,6 +77,7 @@ test.describe('One-time inflow and outflow events', () => {
     });
     await expect(targetRow).toBeVisible({ timeout: 5000 });
 
+    // Column order: 0=Year, 1=Age, 2=Phase, 3=Cash, 4=Taxable, 5=Pre-Tax, 6=Roth, 7=Total
     const totalCell = targetRow.locator(':scope > td').nth(7);
     const totalBefore = await totalCell.innerText();
 
@@ -100,7 +98,8 @@ test.describe('One-time inflow and outflow events', () => {
     await amountInput.fill('200000');
     await amountInput.blur();
 
-    await page.waitForTimeout(500);
+    // Wait for re-render: total cell text must change from the baseline
+    await expect(totalCell).not.toHaveText(totalBefore, { timeout: 2000 });
 
     const totalAfter = await totalCell.innerText();
 
