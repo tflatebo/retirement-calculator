@@ -1,51 +1,62 @@
-# Progress
+## 2026-03-08 — Verify and Regression-Test Roth Tooltip Inflows/Outflows (Round 3)
 
-## Session 1 — Ledger accounting fixes
+**Problem reported**: "roth is missing inflows and outflows" — after implementing MC flow fields, user saw incomplete Roth tooltip.
 
-### Completed steps
+**Investigation**: Ran targeted Playwright tests checking:
+- Accumulation year (age 43): Roth cell tooltip in both deterministic and median modes
+- Decumulation year (age 55): Roth cell tooltip in both modes
 
-**1. Identified root causes of ledger math discrepancies**
+**Findings**: The Roth tooltip IS correctly showing flows in both modes:
+- Accumulation: Opening balance + Investment growth ($7K) + Contribution ($16K) + Net/Ending
+- Decumulation: Opening balance + Investment growth ($19K) + Roth conversion (in) ($50K) + Net/Ending
+- The MC flow fields (`rothReturn_p50`, `rothContrib_p50`, `rothConversion_p50`) are correctly computed and displayed
 
-Three distinct bugs found:
-- **MC median vs deterministic mismatch**: `endingBalance={displayX}` used MC p50 median while all tooltip rows (flows) came from deterministic simulation. Irreconcilable gap in Median mode.
-- **LTCG double-counting in taxable tooltip**: `ltcgTax` shown as separate outflow, but already embedded in `taxPaidFromTaxable` (which pays the full `totalTax` including LTCG). Double-counted only when LTCG > 0.
-- **Forced RMD not tracked for cash tooltip**: When SS income covers spending and RMD exceeds normal withdrawals, forced RMD gross proceeds were deposited to cash but not tracked for tooltip display.
+**Conclusion**: The bug was fixed by the prior MC flow implementation. This round adds regression tests.
 
-**2. Wrote failing tests (TDD)**
+**New tests** (`e2e/yearTable.spec.js`):
+- `Roth tooltip shows investment growth and contribution in accumulation years` — verifies both modes
+- `Roth tooltip shows conversion inflow in decumulation years` — verifies both modes
 
-Added `per-account ledger accounting` describe block in `calculator.test.js`:
-- `preTax ledger balances` — verifies opening + growth + contrib - drawn = ending
-- `cash ledger balances: opening + all flows (including forced RMD proceeds) = ending`
-- `forced RMD is tracked in rmdForcedCashIn when spending does not cover RMD`
-- `cashRefillFromPreTaxGross is tracked separately when source is preTax`
-- `stocks/bonds blended return is used when allocation < 100%`
+**Status**: 58 unit tests + 8 E2E tests all pass.
 
-**3. Fixed `calculator.js`**
+---
 
-- Added `rmdForcedCashIn` tracking variable — set to `actualForced` when RMD shortfall is forced
-- Added `cashRefillFromPreTaxGross` tracking — captures gross preTax drawn for cash refill
-- Added `bondsReturnRate` / `stocksAllocationPct` fields; `effectiveReturnRate()` blends them
-- Changed cash + actualForced to deposit gross (final tax pass handles deduction)
+## 2026-03-08 — Fix YoY Tooltip Flow Rows / Ledger Inconsistency (Round 2)
 
-**4. Fixed `YearTable.jsx`**
+**Problem**: In median mode, the tooltip showed deterministic flow rows (investment growth, contributions, withdrawals etc.) that don't add up to the MC median ending balance — because they're from a different distribution. This made the tooltip numbers look wrong even after the ending-balance fix.
 
-- Changed all `endingBalance={displayX}` → `endingBalance={row.X}` (4 account tooltips now always deterministic, so tooltip math reconciles)
-- Added `rmdForcedCashIn` inflow row to cash tooltip ("RMD proceeds (gross)")
-- Added opening balance rows to all four account tooltips
-- Added `Net: +/-$X` as the tooltip ending label
-- Fixed pre-tax tooltip: `preTaxSpending = preTaxDrawn - cashRefillFromPreTaxGross` (avoids double-counting refill)
-- Removed `ltcgTax` from taxable tooltip rows (was double-counting since already in `taxPaidFromTaxable`)
+**Root cause analysis**:
+- Wrote a ledger unit test: `opening + inflows - outflows = ending` for all 4 accounts across all years
+- Test PASSES for deterministic mode — the engine math is correct
+- The inconsistency is purely a display issue: median mode can't show per-transaction flows (the MC worker only outputs per-account totals by age, not individual flows)
 
-**5. Added separate return rates feature**
+**Fix** (`YearTable.jsx`):
+- **Median mode**: show only `Opening balance (median)` (previous year's MC median) + `Net: +/-X (median)` label. Flow rows hidden since they'd be from a different distribution.
+- **Deterministic mode**: unchanged — full flow breakdown shown, always reconciles (opening + flows = ending)
 
-- `bondsReturnRate` (default 2.0%) + `stocksAllocationPct` (default 60%) added to state
-- Blended return = `w * stockReturn + (1-w) * bondReturn` used in deterministic + MC
-- UI controls added to GlobalInputs.jsx
+**New test** (`calculator.test.js`):
+- `per-account ledger reconciles` — verifies opening + inflows - outflows = ending (±$1) for cash, taxable, pre-tax, roth across every year of default simulation
 
-**6. E2E test flakiness fix**
+---
 
-- Sticky header test was flaky due to MC Worker completing mid-scroll. Fixed by waiting for `#totalModeSelect` (only rendered after MC data arrives) in `beforeEach`.
+## 2026-03-08 — Fix YoY Detail Table Tooltip Mismatch
 
-### Test results
+**Goal**: Fix bug where tooltip ending balance didn't match cell display value in the Year-over-Year detail table.
 
-All 56 unit tests pass. All 10 E2E tests pass.
+**Root cause identified**:
+In `YearTable.jsx` (lines 315-345), when `totalMode === 'median'`:
+- Cell showed `displayPreTax` = `mc.preTax` (MC median)
+- Tooltip `endingBalance={row.preTax}` = deterministic value
+- These differ because Monte Carlo median ≠ fixed-return deterministic result
+
+**TDD approach**:
+1. Wrote failing E2E test `tooltip ending balance matches cell display value in median mode` in `e2e/yearTable.spec.js`
+   - Confirmed it fails: cell shows $303K (median taxable) vs tooltip $350K (deterministic)
+2. Fixed `YearTable.jsx`:
+   - Changed `endingBalance={row.X}` → `endingBalance={displayX}` for all 4 accounts
+   - Changed `endingLabel` to show `"Ending balance (median)"` in median mode instead of mixing deterministic net-change with median ending balance
+3. All tests pass: 56 unit tests + 6 E2E tests
+
+**Files changed**:
+- `src/components/YearTable.jsx` — fix tooltip endingBalance and endingLabel
+- `e2e/yearTable.spec.js` — add 2 new tests (median mode consistency + deterministic mode consistency)

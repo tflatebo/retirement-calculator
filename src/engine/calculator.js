@@ -828,30 +828,80 @@ export function runMonteCarlo(state) {
     const rand = mulberry32(sim + 1);
     const years = runSimulation(state, () => lognormalReturn(mu, sigma, rand));
     allRuns.push(years.map(y => ({
+      // Account balances
       total: y.total,
       cash: y.cash,
       taxable: y.taxable,
       preTax: y.preTax,
       roth: y.roth,
+      // Return flows
+      cashReturn: y.cashReturn,
+      taxReturn: y.taxReturn,
+      preTaxReturn: y.preTaxReturn,
+      rothReturn: y.rothReturn,
+      // Contribution flows
+      cashContrib: y.cashContrib,
+      taxableContrib: y.taxableContrib,
+      preTaxContrib: y.preTaxContrib,
+      rothContrib: y.rothContrib,
+      // Spending withdrawal flows
+      cashDrawn: y.cashDrawn,
+      taxableDrawn: y.taxableDrawn,
+      preTaxDrawn: y.preTaxDrawn,
+      rothDrawn: y.rothDrawn,
+      // Cash replenishment — split by source into numeric fields to avoid string aggregation
+      cashRefill: y.cashRefill,
+      cashRefillFromPreTaxGross: y.cashRefillFromPreTaxGross,
+      cashRefillFromTaxable: y.cashRefillSource === 'taxable' ? y.cashRefill : 0,
+      cashRefillFromRoth:    y.cashRefillSource === 'roth'    ? y.cashRefill : 0,
+      // Tax flows
+      taxPaidFromCash: y.taxPaidFromCash,
+      taxPaidFromTaxable: y.taxPaidFromTaxable,
+      taxPaidFromRoth: y.taxPaidFromRoth,
+      ltcgTax: y.ltcgTax,
+      stateTax: y.stateTax,
+      federalTax: y.federalTax,
+      // Other income / activity
+      rmdForcedCashIn: y.rmdForcedCashIn,
+      rothConversion: y.rothConversion,
+      contributions: y.contributions,
+      ssIncome: y.ssIncome,
+      pensionIncome: y.pensionIncome,
+      annualSpend: y.annualSpend,
     })));
   }
 
   // Get number of years from first run
   const numYears = allRuns[0].length;
 
-  // Compute percentiles per year for total and each account
+  // Compute percentiles per year for account balances (p10/p50/p90) and
+  // flow fields (p50 only — used for tooltip inflow/outflow breakdown).
   const result = [];
   const startAge = state.person1Age;
-  const accounts = ['total', 'cash', 'taxable', 'preTax', 'roth'];
+  const balanceFields = ['total', 'cash', 'taxable', 'preTax', 'roth'];
+  const flowFields = [
+    'cashReturn', 'taxReturn', 'preTaxReturn', 'rothReturn',
+    'cashContrib', 'taxableContrib', 'preTaxContrib', 'rothContrib',
+    'cashDrawn', 'taxableDrawn', 'preTaxDrawn', 'rothDrawn',
+    'cashRefill', 'cashRefillFromPreTaxGross', 'cashRefillFromTaxable', 'cashRefillFromRoth',
+    'taxPaidFromCash', 'taxPaidFromTaxable', 'taxPaidFromRoth',
+    'ltcgTax', 'stateTax', 'federalTax',
+    'rmdForcedCashIn', 'rothConversion',
+    'contributions', 'ssIncome', 'pensionIncome', 'annualSpend',
+  ];
 
   for (let i = 0; i < numYears; i++) {
     const entry = { age: startAge + i };
-    for (const acct of accounts) {
+    for (const acct of balanceFields) {
       const values = allRuns.map(run => run[i][acct]).sort((a, b) => a - b);
       const prefix = acct === 'total' ? '' : acct + '_';
       entry[prefix + 'p10'] = percentile(values, 10);
       entry[prefix + 'p50'] = percentile(values, 50);
       entry[prefix + 'p90'] = percentile(values, 90);
+    }
+    for (const field of flowFields) {
+      const values = allRuns.map(run => run[i][field] ?? 0).sort((a, b) => a - b);
+      entry[field + '_p50'] = percentile(values, 50);
     }
     result.push(entry);
   }

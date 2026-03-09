@@ -40,7 +40,7 @@ function TooltipRow({ label, value, sign, isTotal }) {
  *
  * children: the content to render inside the <td>
  * rows: array of { label, value, sign, condition } where condition controls visibility
- * endingBalance: always shown as the last row
+ * endingLabel / endingBalance: the ending total row (always shown last)
  * className: extra class for the <td>
  */
 function CellTooltip({ children, rows, endingLabel, endingBalance, className }) {
@@ -78,16 +78,46 @@ export function YearTable({ years, mcData, state }) {
 
   const hasMcData = mcData && mcData.length > 0;
 
-  // Build a lookup from age → MC median (p50) values per account
+  // Build a lookup from age → MC median (p50) values: balances + all flow fields
   const mcByAge = {};
   if (hasMcData) {
     for (const d of mcData) {
       mcByAge[d.age] = {
+        // Account balances
         total: Math.max(0, d.p50),
         cash: Math.max(0, d.cash_p50 ?? 0),
         taxable: Math.max(0, d.taxable_p50 ?? 0),
         preTax: Math.max(0, d.preTax_p50 ?? 0),
         roth: Math.max(0, d.roth_p50 ?? 0),
+        // Flow fields — p50 of per-account inflows and outflows
+        cashReturn: d.cashReturn_p50 ?? 0,
+        taxReturn: d.taxReturn_p50 ?? 0,
+        preTaxReturn: d.preTaxReturn_p50 ?? 0,
+        rothReturn: d.rothReturn_p50 ?? 0,
+        cashContrib: d.cashContrib_p50 ?? 0,
+        taxableContrib: d.taxableContrib_p50 ?? 0,
+        preTaxContrib: d.preTaxContrib_p50 ?? 0,
+        rothContrib: d.rothContrib_p50 ?? 0,
+        cashDrawn: d.cashDrawn_p50 ?? 0,
+        taxableDrawn: d.taxableDrawn_p50 ?? 0,
+        preTaxDrawn: d.preTaxDrawn_p50 ?? 0,
+        rothDrawn: d.rothDrawn_p50 ?? 0,
+        cashRefill: d.cashRefill_p50 ?? 0,
+        cashRefillFromPreTaxGross: d.cashRefillFromPreTaxGross_p50 ?? 0,
+        cashRefillFromTaxable: d.cashRefillFromTaxable_p50 ?? 0,
+        cashRefillFromRoth: d.cashRefillFromRoth_p50 ?? 0,
+        taxPaidFromCash: d.taxPaidFromCash_p50 ?? 0,
+        taxPaidFromTaxable: d.taxPaidFromTaxable_p50 ?? 0,
+        taxPaidFromRoth: d.taxPaidFromRoth_p50 ?? 0,
+        ltcgTax: d.ltcgTax_p50 ?? 0,
+        stateTax: d.stateTax_p50 ?? 0,
+        federalTax: d.federalTax_p50 ?? 0,
+        rmdForcedCashIn: d.rmdForcedCashIn_p50 ?? 0,
+        rothConversion: d.rothConversion_p50 ?? 0,
+        contributions: d.contributions_p50 ?? 0,
+        ssIncome: d.ssIncome_p50 ?? 0,
+        pensionIncome: d.pensionIncome_p50 ?? 0,
+        annualSpend: d.annualSpend_p50 ?? 0,
       };
     }
   }
@@ -201,108 +231,93 @@ export function YearTable({ years, mcData, state }) {
                 p => row.age >= p.startAge && row.age <= p.endAge
               );
 
-              // Destructure flow fields (with safe defaults for older snapshots)
-              const {
-                cashReturn = 0,
-                taxReturn = 0,
-                preTaxReturn = 0,
-                rothReturn = 0,
-                cashContrib = 0,
-                taxableContrib = 0,
-                preTaxContrib = 0,
-                rothContrib = 0,
-                cashDrawn = 0,
-                taxableDrawn = 0,
-                preTaxDrawn = 0,
-                rothDrawn = 0,
-                cashRefill = 0,
-                cashRefillFromPreTaxGross = 0,
-                cashRefillSource = '',
-                taxPaidFromCash = 0,
-                taxPaidFromTaxable = 0,
-                taxPaidFromRoth = 0,
-                ltcgTax = 0,
-                stateTax = 0,
-                rmdForcedCashIn = 0,
-              } = row;
-
               const prevRow = prevByAge[row.age];
               const prevTotal = prevRow?.total;
               const netChange = prevTotal != null ? row.total - prevTotal : null;
 
-              // Opening balances from previous year's ending balances
-              const openCash = prevRow?.cash ?? null;
-              const openTaxable = prevRow?.taxable ?? null;
-              const openPreTax = prevRow?.preTax ?? null;
-              const openRoth = prevRow?.roth ?? null;
-
-              // Spending-only portion of preTaxDrawn (excludes cash refill gross)
-              const preTaxSpending = Math.max(0, preTaxDrawn - cashRefillFromPreTaxGross);
-
-              // Tooltip rows for Cash
-              const cashRows = [
-                { label: 'Opening balance', value: openCash, sign: '', condition: openCash != null },
-                { label: 'Interest earned', value: cashReturn, sign: '+', condition: cashReturn > 0 },
-                { label: 'Contribution', value: cashContrib, sign: '+', condition: cashContrib > 0 },
-                { label: 'RMD proceeds (gross)', value: rmdForcedCashIn, sign: '+', condition: rmdForcedCashIn > 0 },
-                { label: 'Cash replenishment (in)', value: cashRefill, sign: '+', condition: cashRefill > 0 },
-                { label: 'Spending withdrawal', value: cashDrawn, sign: '-', condition: cashDrawn > 0 },
-                { label: 'Tax payment', value: taxPaidFromCash, sign: '-', condition: taxPaidFromCash > 0 },
-              ];
-
-              // Tooltip rows for Taxable
-              const taxableRows = [
-                { label: 'Opening balance', value: openTaxable, sign: '', condition: openTaxable != null },
-                { label: 'Investment growth', value: taxReturn, sign: taxReturn >= 0 ? '+' : '-', condition: taxReturn !== 0 },
-                { label: 'Contribution', value: taxableContrib, sign: '+', condition: taxableContrib > 0 },
-                { label: 'Spending withdrawal', value: taxableDrawn, sign: '-', condition: taxableDrawn > 0 },
-                { label: 'Tax payment', value: taxPaidFromTaxable, sign: '-', condition: taxPaidFromTaxable > 0 },
-                { label: 'Cash replenishment (out)', value: cashRefill, sign: '-', condition: cashRefillSource === 'taxable' && cashRefill > 0 },
-              ];
-
-              // Tooltip rows for Pre-Tax
-              // preTaxDrawn includes spending + cashRefillFromPreTaxGross; show separately
-              const preTaxRows = [
-                { label: 'Opening balance', value: openPreTax, sign: '', condition: openPreTax != null },
-                { label: 'Investment growth', value: preTaxReturn, sign: preTaxReturn >= 0 ? '+' : '-', condition: preTaxReturn !== 0 },
-                { label: 'Contribution', value: preTaxContrib, sign: '+', condition: preTaxContrib > 0 },
-                { label: 'Roth conversion (out)', value: row.rothConversion, sign: '-', condition: (row.rothConversion || 0) > 0 },
-                { label: 'Spending withdrawal', value: preTaxSpending, sign: '-', condition: preTaxSpending > 0 },
-                { label: 'Cash refill (gross out)', value: cashRefillFromPreTaxGross, sign: '-', condition: cashRefillFromPreTaxGross > 0 },
-              ];
-
-              // Tooltip rows for Roth
-              const rothRows = [
-                { label: 'Opening balance', value: openRoth, sign: '', condition: openRoth != null },
-                { label: 'Investment growth', value: rothReturn, sign: rothReturn >= 0 ? '+' : '-', condition: rothReturn !== 0 },
-                { label: 'Contribution', value: rothContrib, sign: '+', condition: rothContrib > 0 },
-                { label: 'Roth conversion (in)', value: row.rothConversion, sign: '+', condition: (row.rothConversion || 0) > 0 },
-                { label: 'Spending withdrawal', value: rothDrawn, sign: '-', condition: rothDrawn > 0 },
-                { label: 'Tax payment', value: taxPaidFromRoth, sign: '-', condition: taxPaidFromRoth > 0 },
-                { label: 'Cash replenishment (out)', value: cashRefill, sign: '-', condition: cashRefillSource === 'roth' && cashRefill > 0 },
-              ];
-
-              // Tooltip rows for Total column
-              const investReturn = taxReturn + preTaxReturn + rothReturn;
-              const totalRows = [
-                { label: 'Investment returns', value: investReturn, sign: investReturn >= 0 ? '+' : '-', condition: investReturn !== 0 },
-                { label: 'Cash interest', value: cashReturn, sign: '+', condition: cashReturn > 0 },
-                { label: 'Contributions', value: row.contributions, sign: '+', condition: (row.contributions || 0) > 0 },
-                { label: 'Social Security', value: row.ssIncome, sign: '+', condition: (row.ssIncome || 0) > 0 },
-                { label: 'Pension income', value: row.pensionIncome, sign: '+', condition: (row.pensionIncome || 0) > 0 },
-                { label: 'Spending', value: row.annualSpend, sign: '-', condition: (row.annualSpend || 0) > 0 },
-                { label: 'Federal tax', value: row.federalTax, sign: '-', condition: (row.federalTax || 0) > 0 },
-                { label: 'LTCG tax', value: ltcgTax, sign: '-', condition: ltcgTax > 0 },
-                { label: 'State tax', value: stateTax, sign: '-', condition: stateTax > 0 },
-              ];
-
               const mc = mcByAge[row.age];
+              const prevMc = mcByAge[row.age - 1] ?? null;
               const useMedian = totalMode === 'median' && mc != null;
+
+              // flows: all inflow/outflow values come from either MC p50 or the deterministic row
+              const flows = useMedian ? mc : row;
+
+              // display balances for cell content
               const displayCash = useMedian ? mc.cash : row.cash;
               const displayTaxable = useMedian ? mc.taxable : row.taxable;
               const displayPreTax = useMedian ? mc.preTax : row.preTax;
               const displayRoth = useMedian ? mc.roth : row.roth;
               const displayTotal = useMedian ? mc.total : row.total;
+
+              // Opening balances: MC p50 of previous year (median mode) or deterministic previous year
+              const openCash = useMedian ? (prevMc?.cash ?? null) : (prevRow?.cash ?? null);
+              const openTaxable = useMedian ? (prevMc?.taxable ?? null) : (prevRow?.taxable ?? null);
+              const openPreTax = useMedian ? (prevMc?.preTax ?? null) : (prevRow?.preTax ?? null);
+              const openRoth = useMedian ? (prevMc?.roth ?? null) : (prevRow?.roth ?? null);
+
+              // Spending-only portion of preTaxDrawn (excludes cash refill gross)
+              const preTaxSpending = Math.max(0, (flows.preTaxDrawn ?? 0) - (flows.cashRefillFromPreTaxGross ?? 0));
+
+              // cashRefillSource is a string (det. only); in median mode use numeric split fields
+              const cashRefillFromTaxable = useMedian
+                ? (mc.cashRefillFromTaxable ?? 0)
+                : (row.cashRefillSource === 'taxable' ? (row.cashRefill ?? 0) : 0);
+              const cashRefillFromRoth = useMedian
+                ? (mc.cashRefillFromRoth ?? 0)
+                : (row.cashRefillSource === 'roth' ? (row.cashRefill ?? 0) : 0);
+
+              const cashRows = [
+                { label: 'Opening balance', value: openCash, sign: '', condition: openCash != null },
+                { label: 'Interest earned', value: flows.cashReturn, sign: '+', condition: (flows.cashReturn ?? 0) > 0 },
+                { label: 'Contribution', value: flows.cashContrib, sign: '+', condition: (flows.cashContrib ?? 0) > 0 },
+                { label: 'RMD proceeds (gross)', value: flows.rmdForcedCashIn, sign: '+', condition: (flows.rmdForcedCashIn ?? 0) > 0 },
+                { label: 'Cash replenishment (in)', value: flows.cashRefill, sign: '+', condition: (flows.cashRefill ?? 0) > 0 },
+                { label: 'Spending withdrawal', value: flows.cashDrawn, sign: '-', condition: (flows.cashDrawn ?? 0) > 0 },
+                { label: 'Tax payment', value: flows.taxPaidFromCash, sign: '-', condition: (flows.taxPaidFromCash ?? 0) > 0 },
+              ];
+
+              const taxableRows = [
+                { label: 'Opening balance', value: openTaxable, sign: '', condition: openTaxable != null },
+                { label: 'Investment growth', value: flows.taxReturn, sign: (flows.taxReturn ?? 0) >= 0 ? '+' : '-', condition: (flows.taxReturn ?? 0) !== 0 },
+                { label: 'Contribution', value: flows.taxableContrib, sign: '+', condition: (flows.taxableContrib ?? 0) > 0 },
+                { label: 'Spending withdrawal', value: flows.taxableDrawn, sign: '-', condition: (flows.taxableDrawn ?? 0) > 0 },
+                { label: 'Tax payment', value: flows.taxPaidFromTaxable, sign: '-', condition: (flows.taxPaidFromTaxable ?? 0) > 0 },
+                { label: 'Cash replenishment (out)', value: cashRefillFromTaxable, sign: '-', condition: cashRefillFromTaxable > 0 },
+              ];
+
+              // preTaxDrawn = spending + cashRefillFromPreTaxGross; show each component separately
+              const preTaxRows = [
+                { label: 'Opening balance', value: openPreTax, sign: '', condition: openPreTax != null },
+                { label: 'Investment growth', value: flows.preTaxReturn, sign: (flows.preTaxReturn ?? 0) >= 0 ? '+' : '-', condition: (flows.preTaxReturn ?? 0) !== 0 },
+                { label: 'Contribution', value: flows.preTaxContrib, sign: '+', condition: (flows.preTaxContrib ?? 0) > 0 },
+                { label: 'Roth conversion (out)', value: flows.rothConversion, sign: '-', condition: (flows.rothConversion ?? 0) > 0 },
+                { label: 'Spending withdrawal', value: preTaxSpending, sign: '-', condition: preTaxSpending > 0 },
+                { label: 'Cash refill (gross out)', value: flows.cashRefillFromPreTaxGross, sign: '-', condition: (flows.cashRefillFromPreTaxGross ?? 0) > 0 },
+              ];
+
+              const rothRows = [
+                { label: 'Opening balance', value: openRoth, sign: '', condition: openRoth != null },
+                { label: 'Investment growth', value: flows.rothReturn, sign: (flows.rothReturn ?? 0) >= 0 ? '+' : '-', condition: (flows.rothReturn ?? 0) !== 0 },
+                { label: 'Contribution', value: flows.rothContrib, sign: '+', condition: (flows.rothContrib ?? 0) > 0 },
+                { label: 'Roth conversion (in)', value: flows.rothConversion, sign: '+', condition: (flows.rothConversion ?? 0) > 0 },
+                { label: 'Spending withdrawal', value: flows.rothDrawn, sign: '-', condition: (flows.rothDrawn ?? 0) > 0 },
+                { label: 'Tax payment', value: flows.taxPaidFromRoth, sign: '-', condition: (flows.taxPaidFromRoth ?? 0) > 0 },
+                { label: 'Cash replenishment (out)', value: cashRefillFromRoth, sign: '-', condition: cashRefillFromRoth > 0 },
+              ];
+
+              // Total column tooltip rows
+              const investReturn = (flows.taxReturn ?? 0) + (flows.preTaxReturn ?? 0) + (flows.rothReturn ?? 0);
+              const totalRows = [
+                { label: 'Investment returns', value: investReturn, sign: investReturn >= 0 ? '+' : '-', condition: investReturn !== 0 },
+                { label: 'Cash interest', value: flows.cashReturn, sign: '+', condition: (flows.cashReturn ?? 0) > 0 },
+                { label: 'Contributions', value: flows.contributions, sign: '+', condition: (flows.contributions ?? 0) > 0 },
+                { label: 'Social Security', value: flows.ssIncome, sign: '+', condition: (flows.ssIncome ?? 0) > 0 },
+                { label: 'Pension income', value: flows.pensionIncome, sign: '+', condition: (flows.pensionIncome ?? 0) > 0 },
+                { label: 'Spending', value: flows.annualSpend, sign: '-', condition: (flows.annualSpend ?? 0) > 0 },
+                { label: 'Federal tax', value: flows.federalTax, sign: '-', condition: (flows.federalTax ?? 0) > 0 },
+                { label: 'LTCG tax', value: flows.ltcgTax, sign: '-', condition: (flows.ltcgTax ?? 0) > 0 },
+                { label: 'State tax', value: flows.stateTax, sign: '-', condition: (flows.stateTax ?? 0) > 0 },
+              ];
 
               return (
                 <tr key={row.age} className={row.isAccumulation ? 'row-accum' : 'row-decum'}>
@@ -314,41 +329,45 @@ export function YearTable({ years, mcData, state }) {
 
                   <CellTooltip
                     rows={cashRows}
-                    endingLabel={openCash != null ? `Net: ${row.cash - openCash >= 0 ? '+' : ''}${formatCurrency(row.cash - openCash, true)}` : 'Ending balance'}
-                    endingBalance={row.cash}
+                    endingLabel={openCash != null ? `Net: ${displayCash - openCash >= 0 ? '+' : ''}${formatCurrency(displayCash - openCash, true)}` : 'Ending balance'}
+                    endingBalance={displayCash}
                   >
                     {formatCurrency(displayCash, true)}
                   </CellTooltip>
 
                   <CellTooltip
                     rows={taxableRows}
-                    endingLabel={openTaxable != null ? `Net: ${row.taxable - openTaxable >= 0 ? '+' : ''}${formatCurrency(row.taxable - openTaxable, true)}` : 'Ending balance'}
-                    endingBalance={row.taxable}
+                    endingLabel={openTaxable != null ? `Net: ${displayTaxable - openTaxable >= 0 ? '+' : ''}${formatCurrency(displayTaxable - openTaxable, true)}` : 'Ending balance'}
+                    endingBalance={displayTaxable}
                   >
                     {formatCurrency(displayTaxable, true)}
                   </CellTooltip>
 
                   <CellTooltip
                     rows={preTaxRows}
-                    endingLabel={openPreTax != null ? `Net: ${row.preTax - openPreTax >= 0 ? '+' : ''}${formatCurrency(row.preTax - openPreTax, true)}` : 'Ending balance'}
-                    endingBalance={row.preTax}
+                    endingLabel={openPreTax != null ? `Net: ${displayPreTax - openPreTax >= 0 ? '+' : ''}${formatCurrency(displayPreTax - openPreTax, true)}` : 'Ending balance'}
+                    endingBalance={displayPreTax}
                   >
                     {formatCurrency(displayPreTax, true)}
                   </CellTooltip>
 
                   <CellTooltip
                     rows={rothRows}
-                    endingLabel={openRoth != null ? `Net: ${row.roth - openRoth >= 0 ? '+' : ''}${formatCurrency(row.roth - openRoth, true)}` : 'Ending balance'}
-                    endingBalance={row.roth}
+                    endingLabel={openRoth != null ? `Net: ${displayRoth - openRoth >= 0 ? '+' : ''}${formatCurrency(displayRoth - openRoth, true)}` : 'Ending balance'}
+                    endingBalance={displayRoth}
                   >
                     {formatCurrency(displayRoth, true)}
                   </CellTooltip>
 
                   <CellTooltip
                     rows={totalRows.filter(r => r.condition !== false)}
-                    endingLabel={netChange != null
-                      ? `Net change: ${netChange >= 0 ? '+' : ''}${formatCurrency(netChange, true)}`
-                      : 'Total'}
+                    endingLabel={
+                      useMedian
+                        ? (prevMc != null ? `Net: ${displayTotal - prevMc.total >= 0 ? '+' : ''}${formatCurrency(displayTotal - prevMc.total, true)}` : 'MC Median (p50)')
+                        : netChange != null
+                          ? `Net change: ${netChange >= 0 ? '+' : ''}${formatCurrency(netChange, true)}`
+                          : 'Total'
+                    }
                     endingBalance={displayTotal}
                     className="col-total"
                   >

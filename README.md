@@ -52,8 +52,13 @@ npm run test:e2e  # E2E tests (Playwright)
 - `utils/format.test.js` — `formatCurrency` and `formatPercent` edge cases
 - `utils/ranges.test.js` — `groupConsecutive` and `formatRanges` correctness
 
+**E2E test coverage** (`e2e/**/*.spec.js`, Playwright):
+- `yearTable.spec.js` — Year-over-Year detail table: sticky header, deterministic totals, median toggle, tooltip visibility, tooltip ending balance matches cell display in both deterministic and median modes
+- `chartDrag.spec.js` — Interactive chart drag handles: retirement age handle, spending phase boundaries, clamping behavior
+
 **Testing philosophy:**
 - Engine logic is separated from UI and tested independently (no React in unit tests)
 - Prefer deterministic integration tests over snapshot tests
 - Each feature has at least one test exercising its behavior end-to-end through the simulation engine
 - Account balances are verified non-negative across all runs to catch numerical errors
+- E2E tests cover UI interactions and verify that display values are consistent (e.g., tooltip ending balance always matches the cell's selected mode)

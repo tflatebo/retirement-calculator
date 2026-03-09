@@ -115,4 +115,110 @@ test.describe('YearTable', () => {
     const tooltipRows = tooltip.locator('.tooltip-table tr');
     expect(await tooltipRows.count()).toBeGreaterThan(0);
   });
+
+  test('in median mode: tooltip ending balance and cell display both show MC p50', async ({ page }) => {
+    // Switch to median mode
+    const select = page.locator('#totalModeSelect');
+    await select.selectOption('median');
+
+    // Use the first decumulation row (where MC and deterministic diverge most clearly)
+    const rows = page.locator('.year-table tbody tr.row-decum');
+    const firstRow = rows.first();
+
+    // Check all 4 account cells (cash=0, taxable=1, preTax=2, roth=3)
+    const accountCells = firstRow.locator('td.cell-with-tooltip');
+
+    for (let i = 0; i < 4; i++) {
+      const cell = accountCells.nth(i);
+
+      // Get the cell display value (MC p50 shown in the cell)
+      const cellDisplay = await cell.evaluate(el => {
+        const node = Array.from(el.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
+        return node ? node.textContent.trim() : '';
+      });
+
+      // Hover to reveal tooltip
+      await cell.hover();
+      await page.waitForTimeout(50);
+
+      // The single tooltip-row-total is the MC p50 ending balance — must match cell
+      const tooltipEndingAmount = await cell.locator('.tooltip-row-total .tooltip-amount').innerText();
+      expect(cellDisplay, `Account cell ${i}: cell and tooltip ending must both show MC p50`).toBe(tooltipEndingAmount.trim());
+
+      // Tooltip should also show flow rows (investment growth, spending, etc.)
+      const tooltipRows = cell.locator('.tooltip-table tr');
+      const rowCount = await tooltipRows.count();
+      expect(rowCount, `Account cell ${i}: tooltip should have multiple rows (not just ending balance)`).toBeGreaterThan(2);
+    }
+  });
+
+  test('Roth tooltip shows investment growth and contribution in accumulation years', async ({ page }) => {
+    // Verify Roth account tooltip has flow rows (not just opening/ending balance)
+    // Check both deterministic and median modes
+    for (const mode of ['deterministic', 'median']) {
+      await page.locator('#totalModeSelect').selectOption(mode);
+      await page.mouse.move(0, 0);
+      await page.waitForTimeout(50);
+
+      // Use second accumulation row (age 43) so it has a prior year opening balance
+      const accumRows = page.locator('.year-table tbody tr.row-accum');
+      const secondRow = accumRows.nth(1);
+
+      // Roth is the 4th cell-with-tooltip (index 3: Cash=0, Taxable=1, PreTax=2, Roth=3)
+      const rothCell = secondRow.locator('td.cell-with-tooltip').nth(3);
+      await rothCell.hover();
+      await page.waitForTimeout(50);
+
+      const labels = await rothCell.locator('.tooltip-label').allInnerTexts();
+
+      expect(labels, `Roth tooltip (${mode}) should show Investment growth`).toContain('Investment growth');
+      expect(labels, `Roth tooltip (${mode}) should show Contribution`).toContain('Contribution');
+    }
+  });
+
+  test('Roth tooltip shows conversion inflow in decumulation years', async ({ page }) => {
+    // Default state has Roth conversion of $50K/year from age 55–65
+    for (const mode of ['deterministic', 'median']) {
+      await page.locator('#totalModeSelect').selectOption(mode);
+      await page.mouse.move(0, 0);
+      await page.waitForTimeout(50);
+
+      const decumRows = page.locator('.year-table tbody tr.row-decum');
+      const firstRow = decumRows.first();
+      const rothCell = firstRow.locator('td.cell-with-tooltip').nth(3);
+      await rothCell.hover();
+      await page.waitForTimeout(50);
+
+      const labels = await rothCell.locator('.tooltip-label').allInnerTexts();
+
+      expect(labels, `Roth decum tooltip (${mode}) should show Investment growth`).toContain('Investment growth');
+      expect(labels, `Roth decum tooltip (${mode}) should show Roth conversion (in)`).toContain('Roth conversion (in)');
+    }
+  });
+
+  test('tooltip ending balance matches cell display in deterministic mode', async ({ page }) => {
+    // Switch to deterministic mode
+    const select = page.locator('#totalModeSelect');
+    await select.selectOption('deterministic');
+
+    const rows = page.locator('.year-table tbody tr.row-decum');
+    const firstRow = rows.first();
+    const accountCells = firstRow.locator('td.cell-with-tooltip');
+
+    for (let i = 0; i < 4; i++) {
+      const cell = accountCells.nth(i);
+
+      const cellDisplay = await cell.evaluate(el => {
+        const node = Array.from(el.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
+        return node ? node.textContent.trim() : '';
+      });
+
+      await cell.hover();
+      await page.waitForTimeout(50);
+
+      const tooltipEndingAmount = await cell.locator('.tooltip-row-total .tooltip-amount').innerText();
+
+      expect(cellDisplay, `Account cell ${i} display should match tooltip ending balance (deterministic)`).toBe(tooltipEndingAmount.trim());
+    }
+  });
 });

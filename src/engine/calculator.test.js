@@ -54,6 +54,28 @@ describe('engine runs cleanly with DEFAULT_STATE', () => {
     }
   });
 
+  it('runMonteCarlo includes p50 flow fields for tooltip display', () => {
+    const mcState = { ...DEFAULT_STATE, numSimulations: 10 };
+    const mcData = runMonteCarlo(mcState);
+
+    const requiredFlowFields = [
+      'cashReturn_p50', 'taxReturn_p50', 'preTaxReturn_p50', 'rothReturn_p50',
+      'cashDrawn_p50', 'taxableDrawn_p50', 'preTaxDrawn_p50', 'rothDrawn_p50',
+      'taxPaidFromCash_p50', 'taxPaidFromTaxable_p50', 'taxPaidFromRoth_p50',
+      'cashRefill_p50', 'cashRefillFromPreTaxGross_p50',
+      'cashRefillFromTaxable_p50', 'cashRefillFromRoth_p50',
+      'rmdForcedCashIn_p50', 'rothConversion_p50',
+      'federalTax_p50', 'ltcgTax_p50', 'stateTax_p50',
+      'contributions_p50', 'ssIncome_p50', 'annualSpend_p50',
+    ];
+
+    for (const d of mcData) {
+      for (const field of requiredFlowFields) {
+        expect(Number.isFinite(d[field]), `MC entry missing or NaN: ${field} at age ${d.age}`).toBe(true);
+      }
+    }
+  });
+
   it('computeSummary produces finite results', () => {
     const years = runDeterministic(DEFAULT_STATE);
     const mcState = { ...DEFAULT_STATE, numSimulations: 10 };
@@ -76,6 +98,70 @@ describe('engine runs cleanly with DEFAULT_STATE', () => {
       expect(y.taxable).toBeGreaterThanOrEqual(0);
       expect(y.preTax).toBeGreaterThanOrEqual(0);
       expect(y.roth).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('per-account ledger reconciles: opening + inflows - outflows = ending for each account each year', () => {
+    const years = runDeterministic(DEFAULT_STATE);
+    const TOLERANCE = 1; // $1 rounding tolerance
+
+    for (let i = 1; i < years.length; i++) {
+      const prev = years[i - 1];
+      const cur = years[i];
+
+      // Cash ledger:
+      // opening + interest + contribution + rmdForcedCashIn + cashRefill - cashDrawn - taxPaidFromCash = ending
+      // (unless floor clamps ending to 0, in which case the sum may go negative)
+      const cashComputed = prev.cash
+        + (cur.cashReturn ?? 0)
+        + (cur.cashContrib ?? 0)
+        + (cur.rmdForcedCashIn ?? 0)
+        + (cur.cashRefill ?? 0)
+        - (cur.cashDrawn ?? 0)
+        - (cur.taxPaidFromCash ?? 0);
+      const cashExpected = cur.cash;
+      // Allow for floor: if computed < 0, floor brings it to 0
+      const cashReconciled = Math.abs(cashExpected - Math.max(0, cashComputed)) < TOLERANCE;
+      expect(cashReconciled, `Cash ledger mismatch at age ${cur.age}: computed=${cashComputed.toFixed(2)}, actual=${cashExpected.toFixed(2)}`).toBe(true);
+
+      // Taxable ledger:
+      // opening + growth + contribution - taxableDrawn - taxPaidFromTaxable - cashRefill(if source=taxable) = ending
+      const taxableRefillOut = cur.cashRefillSource === 'taxable' ? (cur.cashRefill ?? 0) : 0;
+      const taxableComputed = prev.taxable
+        + (cur.taxReturn ?? 0)
+        + (cur.taxableContrib ?? 0)
+        - (cur.taxableDrawn ?? 0)
+        - (cur.taxPaidFromTaxable ?? 0)
+        - taxableRefillOut;
+      const taxableExpected = cur.taxable;
+      const taxableReconciled = Math.abs(taxableExpected - Math.max(0, taxableComputed)) < TOLERANCE;
+      expect(taxableReconciled, `Taxable ledger mismatch at age ${cur.age}: computed=${taxableComputed.toFixed(2)}, actual=${taxableExpected.toFixed(2)}`).toBe(true);
+
+      // Pre-tax ledger:
+      // opening + growth + contribution - rothConversion - preTaxDrawn = ending
+      // (preTaxDrawn includes spending + cashRefillFromPreTaxGross + rmdShortfall)
+      const preTaxComputed = prev.preTax
+        + (cur.preTaxReturn ?? 0)
+        + (cur.preTaxContrib ?? 0)
+        - (cur.rothConversion ?? 0)
+        - (cur.preTaxDrawn ?? 0);
+      const preTaxExpected = cur.preTax;
+      const preTaxReconciled = Math.abs(preTaxExpected - Math.max(0, preTaxComputed)) < TOLERANCE;
+      expect(preTaxReconciled, `Pre-tax ledger mismatch at age ${cur.age}: computed=${preTaxComputed.toFixed(2)}, actual=${preTaxExpected.toFixed(2)}`).toBe(true);
+
+      // Roth ledger:
+      // opening + growth + contribution + rothConversion - rothDrawn - taxPaidFromRoth - cashRefill(if source=roth) = ending
+      const rothRefillOut = cur.cashRefillSource === 'roth' ? (cur.cashRefill ?? 0) : 0;
+      const rothComputed = prev.roth
+        + (cur.rothReturn ?? 0)
+        + (cur.rothContrib ?? 0)
+        + (cur.rothConversion ?? 0)
+        - (cur.rothDrawn ?? 0)
+        - (cur.taxPaidFromRoth ?? 0)
+        - rothRefillOut;
+      const rothExpected = cur.roth;
+      const rothReconciled = Math.abs(rothExpected - Math.max(0, rothComputed)) < TOLERANCE;
+      expect(rothReconciled, `Roth ledger mismatch at age ${cur.age}: computed=${rothComputed.toFixed(2)}, actual=${rothExpected.toFixed(2)}`).toBe(true);
     }
   });
 });
