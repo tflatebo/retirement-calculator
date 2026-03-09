@@ -156,6 +156,32 @@ function getContributions(age, contributionPhases) {
   return { preTax: phase.preTax, roth: phase.roth, taxable: phase.taxable, cash: phase.cash };
 }
 
+/**
+ * Aggregate all one-time inflows for a given age.
+ * Returns per-account totals plus total taxable income from flagged events.
+ */
+function getInflowsForAge(age, oneTimeInflows) {
+  const events = (oneTimeInflows || []).filter(e => e.age === age);
+  return events.reduce((acc, e) => ({
+    preTax: acc.preTax + (e.preTax || 0),
+    roth:   acc.roth   + (e.roth   || 0),
+    taxable: acc.taxable + (e.taxable || 0),
+    cash:   acc.cash   + (e.cash   || 0),
+    taxableIncome: acc.taxableIncome + (e.isTaxableIncome
+      ? (e.preTax || 0) + (e.roth || 0) + (e.taxable || 0) + (e.cash || 0)
+      : 0),
+  }), { preTax: 0, roth: 0, taxable: 0, cash: 0, taxableIncome: 0 });
+}
+
+/**
+ * Sum all one-time outflows for a given age.
+ */
+function getOutflowForAge(age, oneTimeOutflows) {
+  return (oneTimeOutflows || [])
+    .filter(e => e.age === age)
+    .reduce((sum, e) => sum + (e.amount || 0), 0);
+}
+
 // ─── Main Simulation ──────────────────────────────────────────────────────────
 
 /**
@@ -182,6 +208,8 @@ export function runSimulation(state, returnSampler) {
     marketDeclineThreshold,
     cashReturnRate = 4.0,
     spendingPhases,
+    oneTimeInflows = [],
+    oneTimeOutflows = [],
     bondsReturnRate = 2.0,
     stocksAllocationPct = 100,
     // New tax / strategy fields (with defaults for backward compatibility)
@@ -320,6 +348,39 @@ export function runSimulation(state, returnSampler) {
 
       contributions = contrib.preTax + contrib.roth + contrib.taxable + contrib.cash;
 
+      // One-time inflows (accumulation)
+      // Note: isTaxableIncome has no effect here — accumulation phase has no income tax model.
+      const inflow = getInflowsForAge(age, oneTimeInflows);
+      preTax   += inflow.preTax;
+      roth     += inflow.roth;
+      taxable  += inflow.taxable;
+      taxableBasis += inflow.taxable;
+      cash     += inflow.cash;
+      preTaxContrib   += inflow.preTax;
+      rothContrib     += inflow.roth;
+      taxableContrib  += inflow.taxable;
+      cashContrib     += inflow.cash;
+
+      // One-time outflows (accumulation): cash-first draw
+      const outflowAmt = getOutflowForAge(age, oneTimeOutflows);
+      if (outflowAmt > 0) {
+        let rem = outflowAmt;
+        const fromCash = Math.min(cash, rem);
+        cash    -= fromCash; cashDrawn    += fromCash; rem -= fromCash;
+        if (rem > 0) {
+          const fromTaxable = Math.min(taxable, rem);
+          taxable -= fromTaxable; taxableDrawn += fromTaxable; rem -= fromTaxable;
+        }
+        if (rem > 0) {
+          const fromPreTax = Math.min(preTax, rem);
+          preTax  -= fromPreTax; preTaxDrawn  += fromPreTax; rem -= fromPreTax;
+        }
+        if (rem > 0) {
+          const fromRoth = Math.min(roth, rem);
+          roth    -= fromRoth;   rothDrawn    += fromRoth;
+        }
+      }
+
     } else {
       // --- DECUMULATION PHASE ---
 
@@ -355,6 +416,18 @@ export function runSimulation(state, returnSampler) {
       preTaxReturn = preTax - preGrowthPreTax;
       rothReturn = roth - preGrowthRoth;
 
+      // One-time inflows (decumulation)
+      const inflow = getInflowsForAge(age, oneTimeInflows);
+      preTax   += inflow.preTax;
+      roth     += inflow.roth;
+      taxable  += inflow.taxable;
+      taxableBasis += inflow.taxable;
+      cash     += inflow.cash;
+      preTaxContrib   += inflow.preTax;
+      rothContrib     += inflow.roth;
+      taxableContrib  += inflow.taxable;
+      cashContrib     += inflow.cash;
+
       const postGrowthTotal = cash + taxable + preTax + roth;
       const portfolioReturn = preGrowthTotal > 0
         ? (postGrowthTotal - preGrowthTotal) / preGrowthTotal
@@ -379,6 +452,9 @@ export function runSimulation(state, returnSampler) {
       if (age < healthcareEndAge) {
         annualSpend += healthcareCostMonthly * 12;
       }
+
+      // One-time outflows (decumulation): added to spending, handled by withdrawal strategy
+      annualSpend += getOutflowForAge(age, oneTimeOutflows);
 
       // Pension / annuity income (Task 10)
       if (age >= pensionStartAge && pensionIncome > 0) {
@@ -611,7 +687,7 @@ export function runSimulation(state, returnSampler) {
       // ── Final Tax Computation ───────────────────────────────────────────────
       // Ordinary income = pre-tax withdrawals + conversions + taxable SS
       // We use an iterative approach: compute taxable SS based on ordinary income
-      const ordinaryIncomePreSS = preTaxDrawn + conversionTaxableAmount + yearPensionIncome;
+      const ordinaryIncomePreSS = preTaxDrawn + conversionTaxableAmount + yearPensionIncome + inflow.taxableIncome;
       const taxableSSAmount = computeTaxableSS(ssIncome, ordinaryIncomePreSS, yearFilingStatus);
       const grossOrdinaryIncome = ordinaryIncomePreSS + taxableSSAmount;
 
