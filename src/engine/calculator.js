@@ -416,6 +416,17 @@ export function runSimulation(state, returnSampler) {
       preTaxReturn = preTax - preGrowthPreTax;
       rothReturn = roth - preGrowthRoth;
 
+      // Apply cash return (money market / T-bill yield on the cash bucket)
+      const cashBeforeReturn = cash;
+      cash *= (1 + cashReturnRate / 100);
+      cashReturn = cash - cashBeforeReturn;
+
+      const postGrowthTotal = cash + taxable + preTax + roth;
+      const portfolioReturn = preGrowthTotal > 0
+        ? (postGrowthTotal - preGrowthTotal) / preGrowthTotal
+        : 0;
+      const marketDeclined = portfolioReturn < -(marketDeclineThreshold / 100);
+
       // One-time inflows (decumulation)
       const inflow = getInflowsForAge(age, oneTimeInflows);
       preTax   += inflow.preTax;
@@ -427,17 +438,6 @@ export function runSimulation(state, returnSampler) {
       rothContrib     += inflow.roth;
       taxableContrib  += inflow.taxable;
       cashContrib     += inflow.cash;
-
-      const postGrowthTotal = cash + taxable + preTax + roth;
-      const portfolioReturn = preGrowthTotal > 0
-        ? (postGrowthTotal - preGrowthTotal) / preGrowthTotal
-        : 0;
-      const marketDeclined = portfolioReturn < -(marketDeclineThreshold / 100);
-
-      // Apply cash return (money market / T-bill yield on the cash bucket)
-      const cashBeforeReturn = cash;
-      cash *= (1 + cashReturnRate / 100);
-      cashReturn = cash - cashBeforeReturn;
 
       // ── RMD Calculation ────────────────────────────────────────────────────
       rmdAmount = getRmdRequired(preTax, age);
