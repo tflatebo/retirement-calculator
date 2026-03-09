@@ -736,3 +736,188 @@ describe('pension income', () => {
     expect(at58.pensionIncome).toBe(0);
   });
 });
+
+// ─── One-time events ──────────────────────────────────────────────────────────
+
+describe('one-time inflow and outflow events', () => {
+  const BASE = {
+    ...DEFAULT_STATE,
+    // Use simple params to make expected values easy to reason about
+    realReturn: 0,        // no growth — balance changes are only from events
+    bondsReturnRate: 0,
+    cashReturnRate: 0,
+    inflationRate: 0,
+    numSimulations: 1,
+    // Age range: 42–60, retirement at 55
+    person1Age: 42,
+    retirementAge: 55,
+    endOfPlanAge: 60,
+    // No contributions or spending to isolate event effects
+    contributionPhases: [],
+    spendingPhases: [],
+    // Zero starting balances — easier to verify
+    cashBalance: 0,
+    taxableBalance: 0,
+    preTaxBalance: 0,
+    rothBalance: 0,
+    taxableCostBasis: 0,
+    // No SS, no healthcare, no pension
+    person1SSMonthly: 0,
+    person2SSMonthly: 0,
+    healthcareCostMonthly: 0,
+    pensionIncome: 0,
+    rothConversionAmount: 0,
+    oneTimeInflows: [],
+    oneTimeOutflows: [],
+  };
+
+  it('non-taxable inflow at accumulation age deposits to correct accounts', () => {
+    const state = {
+      ...BASE,
+      oneTimeInflows: [
+        { id: 1, name: 'Inheritance', age: 50, preTax: 10000, roth: 5000, taxable: 20000, cash: 3000, isTaxableIncome: false },
+      ],
+    };
+    const years = runDeterministic(state);
+    const yr = years.find(y => y.age === 50);
+
+    expect(yr.preTax).toBe(10000);
+    expect(yr.roth).toBe(5000);
+    expect(yr.taxable).toBe(20000);
+    expect(yr.cash).toBe(3000);
+  });
+
+  it('non-taxable inflow at decumulation age deposits to correct accounts', () => {
+    const state = {
+      ...BASE,
+      oneTimeInflows: [
+        { id: 1, name: 'Windfall', age: 57, preTax: 0, roth: 0, taxable: 100000, cash: 0, isTaxableIncome: false },
+      ],
+    };
+    const years = runDeterministic(state);
+    const yr = years.find(y => y.age === 57);
+
+    expect(yr.taxable).toBe(100000);
+  });
+
+  it('taxable inflow increases federalTax in decumulation year', () => {
+    const stateNo = {
+      ...BASE,
+      person1SSMonthly: 0,
+      standardDeduction: 30000,
+      oneTimeInflows: [
+        { id: 1, name: 'Non-taxable', age: 57, preTax: 0, roth: 0, taxable: 50000, cash: 0, isTaxableIncome: false },
+      ],
+    };
+    const stateYes = {
+      ...stateNo,
+      oneTimeInflows: [
+        { id: 1, name: 'Taxable sale', age: 57, preTax: 0, roth: 0, taxable: 50000, cash: 0, isTaxableIncome: true },
+      ],
+    };
+
+    const yrsNo  = runDeterministic(stateNo);
+    const yrsYes = runDeterministic(stateYes);
+
+    const yrNo  = yrsNo.find(y => y.age === 57);
+    const yrYes = yrsYes.find(y => y.age === 57);
+
+    expect(yrYes.federalTax).toBeGreaterThan(yrNo.federalTax);
+  });
+
+  it('outflow at accumulation age reduces portfolio', () => {
+    const state = {
+      ...BASE,
+      cashBalance: 80000,
+      oneTimeOutflows: [
+        { id: 1, name: 'Gift to kids', age: 50, amount: 50000 },
+      ],
+    };
+    const years = runDeterministic(state);
+    const before = years.find(y => y.age === 49);
+    const at     = years.find(y => y.age === 50);
+
+    // Outflow reduces cash by 50k (cash had 80k, no return)
+    expect(at.cash).toBe((before?.cash ?? 80000) - 50000);
+    expect(at.total).toBeLessThan(before?.total ?? 80000);
+  });
+
+  it('outflow at decumulation age reduces portfolio', () => {
+    const state = {
+      ...BASE,
+      cashBalance: 200000,
+      oneTimeOutflows: [
+        { id: 1, name: 'Gift to kids', age: 58, amount: 100000 },
+      ],
+    };
+    const years = runDeterministic(state);
+    const before = years.find(y => y.age === 57);
+    const at     = years.find(y => y.age === 58);
+
+    expect(at.total).toBeLessThan(before?.total ?? 200000);
+  });
+
+  it('per-account ledger still reconciles with one-time events', () => {
+    const state = {
+      ...BASE,
+      cashBalance: 100000,
+      taxableBalance: 200000,
+      preTaxBalance: 300000,
+      rothBalance: 50000,
+      oneTimeInflows: [
+        { id: 1, name: 'Windfall (accum)',  age: 48, preTax: 5000, roth: 0, taxable: 10000, cash: 2000, isTaxableIncome: false },
+        { id: 2, name: 'Windfall (decum)',  age: 57, preTax: 0,    roth: 0, taxable: 50000, cash: 0,    isTaxableIncome: false },
+      ],
+      oneTimeOutflows: [
+        { id: 3, name: 'Gift (accum)',  age: 50, amount: 20000 },
+        { id: 4, name: 'Gift (decum)',  age: 58, amount: 30000 },
+      ],
+    };
+    const years = runDeterministic(state);
+    const TOLERANCE = 1;
+
+    for (let i = 1; i < years.length; i++) {
+      const prev = years[i - 1];
+      const cur  = years[i];
+
+      const cashComputed = prev.cash
+        + (cur.cashReturn ?? 0)
+        + (cur.cashContrib ?? 0)
+        + (cur.rmdForcedCashIn ?? 0)
+        + (cur.cashRefill ?? 0)
+        - (cur.cashDrawn ?? 0)
+        - (cur.taxPaidFromCash ?? 0);
+      expect(Math.abs(cur.cash - Math.max(0, cashComputed)) < TOLERANCE,
+        `Cash ledger at age ${cur.age}: computed=${cashComputed.toFixed(2)}, actual=${cur.cash.toFixed(2)}`).toBe(true);
+
+      const taxableRefillOut = cur.cashRefillSource === 'taxable' ? (cur.cashRefill ?? 0) : 0;
+      const taxableComputed = prev.taxable
+        + (cur.taxReturn ?? 0)
+        + (cur.taxableContrib ?? 0)
+        - (cur.taxableDrawn ?? 0)
+        - (cur.taxPaidFromTaxable ?? 0)
+        - taxableRefillOut;
+      expect(Math.abs(cur.taxable - Math.max(0, taxableComputed)) < TOLERANCE,
+        `Taxable ledger at age ${cur.age}: computed=${taxableComputed.toFixed(2)}, actual=${cur.taxable.toFixed(2)}`).toBe(true);
+
+      const preTaxComputed = prev.preTax
+        + (cur.preTaxReturn ?? 0)
+        + (cur.preTaxContrib ?? 0)
+        - (cur.rothConversion ?? 0)
+        - (cur.preTaxDrawn ?? 0);
+      expect(Math.abs(cur.preTax - Math.max(0, preTaxComputed)) < TOLERANCE,
+        `PreTax ledger at age ${cur.age}: computed=${preTaxComputed.toFixed(2)}, actual=${cur.preTax.toFixed(2)}`).toBe(true);
+
+      const rothRefillOut = cur.cashRefillSource === 'roth' ? (cur.cashRefill ?? 0) : 0;
+      const rothComputed = prev.roth
+        + (cur.rothReturn ?? 0)
+        + (cur.rothContrib ?? 0)
+        + (cur.rothConversion ?? 0)
+        - (cur.rothDrawn ?? 0)
+        - (cur.taxPaidFromRoth ?? 0)
+        - rothRefillOut;
+      expect(Math.abs(cur.roth - Math.max(0, rothComputed)) < TOLERANCE,
+        `Roth ledger at age ${cur.age}: computed=${rothComputed.toFixed(2)}, actual=${cur.roth.toFixed(2)}`).toBe(true);
+    }
+  });
+});
