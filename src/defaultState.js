@@ -84,4 +84,8 @@ export const DEFAULT_STATE = {
     { id: 2, name: 'Mid retirement', startAge: 65, endAge: 74, annualSpend: 144000 },
     { id: 3, name: 'Later retirement', startAge: 75, endAge: 90, annualSpend: 96000 },
   ],
+
+  // One-time financial events (any age, pre- or post-retirement)
+  oneTimeInflows: [],
+  oneTimeOutflows: [],
 };
